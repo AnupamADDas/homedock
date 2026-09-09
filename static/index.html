@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>HomeDock — Server Manager</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 1. Authentication View -->
+    <div id="authContainer" class="auth-container">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <h1 class="auth-title">HomeDock</h1>
+          </div>
+          <p class="auth-subtitle">Secure Web-Based Server Management</p>
+        </div>
+
+        <div id="loginErrorMsg" style="display: none; background: var(--color-danger-alpha); color: var(--color-danger); padding: 0.65rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-bottom: 1.25rem;"></div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label class="form-label" for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" class="form-control" required autocomplete="username" autofocus placeholder="admin">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-control" required autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" style="margin-top: 1.5rem;">
+            Sign In
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2. Main Application View -->
+    <div id="appContainer" style="display: none; width: 100%; height: 100%; display: flex; overflow: hidden;">
+      <!-- Sidebar -->
+      <aside id="appSidebar" class="sidebar">
+        <div class="sidebar-header">
+          <a href="#" class="sidebar-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+            <span>HomeDock</span>
+          </a>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a class="nav-item active" data-view="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Dashboard</span>
+          </a>
+          <a class="nav-item" data-view="files">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <span>File Manager</span>
+          </a>
+          <a class="nav-item" data-view="downloads">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Downloads</span>
+          </a>
+          <a class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Settings</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="user-profile">
+            <div id="sidebarUserAvatar" class="user-avatar">A</div>
+            <div class="user-info">
+              <div id="sidebarUserName" class="user-name">Admin</div>
+              <div id="sidebarUserRole" class="user-role">Administrator</div>
+            </div>
+          </div>
+          <button id="logoutBtn" class="btn btn-secondary btn-icon btn-sm" title="Sign Out">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Section -->
+      <div class="main-wrapper">
+        <!-- Global Top Header -->
+        <header class="top-header">
+          <div class="header-left">
+            <button id="mobileNavToggle" class="mobile-nav-toggle" aria-label="Toggle Navigation">
+              <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="header-telemetry">
+              <!-- CPU Chip -->
+              <div class="telemetry-chip" title="CPU Usage & Temperature">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                <span class="chip-label">CPU</span>
+                <span id="headerCpuVal" class="chip-value">--%</span>
+              </div>
+
+              <!-- RAM Chip -->
+              <div class="telemetry-chip" title="RAM Usage">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M6 5v3"/><path d="M10 5v3"/><path d="M14 5v3"/><path d="M18 5v3"/><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+                <span class="chip-label">RAM</span>
+                <span id="headerMemVal" class="chip-value">--%</span>
+              </div>
+
+              <!-- Network Chip -->
+              <div class="telemetry-chip" title="Network Rates">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                <span id="headerNetVal" class="chip-value">↓ 0 B/s  ↑ 0 B/s</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="header-right">
+            <button id="themeToggleBtn" class="btn btn-secondary btn-icon" title="Toggle Theme">
+              <svg id="themeSunIcon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <svg id="themeMoonIcon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" style="display: none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Content Views -->
+        <main class="content-body">
+          <!-- VIEW 1: DASHBOARD -->
+          <section id="dashboardView" class="view-section active">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">Server Overview</h2>
+                <p class="section-desc">Hardware telemetry & attached filesystem telemetry</p>
+              </div>
+            </div>
+
+            <!-- Top Metric Cards Grid -->
+            <div class="dashboard-grid">
+              <!-- CPU Card -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                    <span>Processor</span>
+                  </div>
+                  <span id="cpuTempDetail" class="card-badge">--°C</span>
+                </div>
+                <div class="metric-highlight">
+                  <span id="cpuPercentVal" class="metric-big">0%</span>
+                  <span class="metric-sub">utilization</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div id="cpuBarFill" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div class="chart-container">
+                  <canvas id="cpuHistoryChart"></canvas>
+                </div>
+                <div id="cpuCoresList" class="core-mini-container" title="Per-core CPU utilization"></div>
+                <div class="metric-grid-details">
+                  <div class="detail-item">
+                    <span class="detail-label">Frequency</span>
+                    <span id="cpuFreqDetail" class="detail-val">-- MHz</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Load Average</span>
+                    <span id="cpuLoadDetail" class="detail-val">--</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Memory Card -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M6 5v3"/><path d="M10 5v3"/><path d="M14 5v3"/><path d="M18 5v3"/><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+                    <span>Memory</span>
+                  </div>
+                  <span id="memAvailDetail" class="card-badge">-- Avail</span>
+                </div>
+                <div class="metric-highlight">
+                  <span id="memPercentVal" class="metric-big">0%</span>
+                  <span class="metric-sub">used</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div id="memBarFill" class="progress-bar-fill" style="width: 0%; background-color: #a855f7;"></div>
+                </div>
+                <div class="chart-container">
+                  <canvas id="memHistoryChart"></canvas>
+                </div>
+                <div class="metric-grid-details">
+                  <div class="detail-item">
+                    <span class="detail-label">Used / Total</span>
+                    <span id="memUsedDetail" class="detail-val">--</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Swap</span>
+                    <span id="memSwapDetail" class="detail-val">--</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Network Card -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                    <span>Network Throughput</span>
+                  </div>
+                  <span id="netTotalSummary" class="card-badge" style="font-family: var(--font-mono); font-size: 0.72rem;">↓ 0 B  ↑ 0 B</span>
+                </div>
+                
+                <!-- Visual Download Meter -->
+                <div class="net-meter-row">
+                  <div class="net-meter-labels">
+                    <span><strong style="color: var(--color-success);">↓ DL</strong> <span id="netDownloadSpeed" style="font-weight: 600; color: var(--color-success);">0 B/s</span></span>
+                    <span id="netTotalRx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
+                  </div>
+                  <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0.4rem;">
+                    <div id="netDownloadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
+                  </div>
+                </div>
+
+                <!-- Visual Upload Meter -->
+                <div class="net-meter-row">
+                  <div class="net-meter-labels">
+                    <span><strong style="color: var(--color-warning);">↑ UL</strong> <span id="netUploadSpeed" style="font-weight: 600; color: var(--color-warning);">0 B/s</span></span>
+                    <span id="netTotalTx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
+                  </div>
+                  <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0.6rem;">
+                    <div id="netUploadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-warning);"></div>
+                  </div>
+                </div>
+
+                <div class="chart-container">
+                  <canvas id="netHistoryChart"></canvas>
+                </div>
+                <div id="netInterfacesList" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.75rem;"></div>
+              </div>
+
+              <!-- Sensors & Hardware Card -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Hardware & Sensors</span>
+                  </div>
+                  <span id="fanStatusVal" class="card-badge" style="background: var(--color-info-alpha, rgba(99,102,241,0.15)); color: var(--color-info); display: inline-flex; align-items: center; gap: 0.35rem;">
+                    <svg id="fanIconSvg" class="fan-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 9a4 4 0 0 1 4-4 4 4 0 0 1-1 3.8"/><path d="M15 12a4 4 0 0 1 4 4 4 4 0 0 1-3.8-1"/><path d="M12 15a4 4 0 0 1-4 4 4 4 0 0 1 1-3.8"/><path d="M9 12a4 4 0 0 1-4-4 4 4 0 0 1 3.8 1"/></svg>
+                    <span id="fanRpmText">Checking Fan</span>
+                  </span>
+                </div>
+
+                <!-- Hardware Identity -->
+                <div style="margin-bottom: 0.75rem;">
+                  <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.15rem;" id="sensorCpuModel">Intel Core i7-8550U</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);" id="sensorHostKernel">asus-ZenBook • Linux 7.0.0-31-generic</div>
+                </div>
+
+                <!-- Motherboard & Subsystem Thermals -->
+                <div style="margin-bottom: 0.65rem;">
+                  <div class="detail-label" style="font-size: 0.72rem; text-transform: uppercase; margin-bottom: 0.3rem;">Thermals & Motherboard</div>
+                  <div class="sensor-chips-row" id="sensorThermalChips">
+                    <span class="sensor-chip" id="sensorChipNvme">NVMe: <strong id="nvmeTempDetail">--°C</strong></span>
+                    <span class="sensor-chip" id="sensorChipPch">PCH: <strong id="pchTempDetail">--°C</strong></span>
+                    <span class="sensor-chip" id="sensorChipWifi">WiFi: <strong id="wifiTempDetail">--°C</strong></span>
+                    <span class="sensor-chip" id="sensorChipAcpi">ACPI: <strong id="acpiTempDetail">--°C</strong></span>
+                  </div>
+                </div>
+
+                <!-- Per-Core Temperatures -->
+                <div style="margin-bottom: 0.65rem;">
+                  <div class="detail-label" style="font-size: 0.72rem; text-transform: uppercase; margin-bottom: 0.3rem;">Core Temperatures</div>
+                  <div class="sensor-chips-row" id="sensorCoreTemps">
+                    <span class="sensor-chip">Core 0: <strong>--°C</strong></span>
+                    <span class="sensor-chip">Core 1: <strong>--°C</strong></span>
+                    <span class="sensor-chip">Core 2: <strong>--°C</strong></span>
+                    <span class="sensor-chip">Core 3: <strong>--°C</strong></span>
+                  </div>
+                </div>
+
+                <!-- Power & System Uptime -->
+                <div class="metric-grid-details" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+                  <div class="detail-item">
+                    <span class="detail-label">Power / Battery</span>
+                    <span id="batteryDetail" class="detail-val">--</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">System Uptime</span>
+                    <span id="uptimeDetail" class="detail-val">--</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Storage Section -->
+            <div style="margin-top: 2rem;">
+              <div class="section-header">
+                <div>
+                  <h3 class="section-title" style="font-size: 1.15rem;">Attached Storage & Filesystems</h3>
+                  <p class="section-desc">Dynamic hot-plug support for internal & external USB drives</p>
+                </div>
+                <button onclick="api.refreshStorage().then(d => dashboardComponent.updateStorage(d))" class="btn btn-secondary btn-sm">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  <span>Rescan Drives</span>
+                </button>
+              </div>
+
+              <div id="storageDevicesList" class="storage-grid">
+                <!-- Storage cards populated dynamically -->
+              </div>
+            </div>
+          </section>
+
+          <!-- VIEW 2: FILE MANAGER -->
+          <section id="filesView" class="view-section">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">File Manager</h2>
+                <p class="section-desc">Securely browse, upload, and extract archives in allowed storage</p>
+              </div>
+            </div>
+
+            <div class="filemanager-container">
+              <!-- Toolbar -->
+              <div class="fm-toolbar">
+                <div class="fm-toolbar-left">
+                  <input type="file" id="fmUploadInput" multiple style="display: none;">
+                  <button id="fmUploadBtn" class="btn btn-primary btn-sm">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Upload</span>
+                  </button>
+                  <button id="fmNewFolderBtn" class="btn btn-secondary btn-sm">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    <span>New Folder</span>
+                  </button>
+                  <button id="fmRefreshBtn" class="btn btn-secondary btn-icon btn-sm" title="Refresh">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  </button>
+                  <button id="fmToggleHiddenBtn" class="btn btn-secondary btn-sm" title="Show/Hide hidden files">
+                    <span>.hidden</span>
+                  </button>
+
+                  <!-- Clipboard Bar (Active when items are copied or cut) -->
+                  <div id="fmClipboardBar" class="fm-clipboard-bar" style="display: none;">
+                    <span id="fmClipboardText" class="fm-clipboard-badge"></span>
+                    <button id="fmPasteBtn" class="btn btn-primary btn-sm" title="Paste items into this folder">
+                      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                      <span id="fmPasteBtnText">Paste</span>
+                    </button>
+                    <button id="fmCancelClipboardBtn" class="btn btn-secondary btn-icon btn-sm" title="Cancel clipboard">
+                      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="fmBulkActions" class="fm-toolbar-right" style="display: none;">
+                  <span id="fmSelectedCount" style="font-size: 0.85rem; color: var(--text-secondary); margin-right: 0.5rem;">0 selected</span>
+                  <button id="fmBulkCopyBtn" class="btn btn-secondary btn-sm" title="Copy selected items">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>Copy</span>
+                  </button>
+                  <button id="fmBulkMoveBtn" class="btn btn-secondary btn-sm" title="Cut / Move selected items">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+                    <span>Move</span>
+                  </button>
+                  <button id="fmBulkTransferBtn" class="btn btn-secondary btn-sm" title="Transfer items to specific destination directory">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <span>Transfer To...</span>
+                  </button>
+                  <button id="fmBulkDeleteBtn" class="btn btn-danger btn-sm">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Storage Location Chips -->
+              <div id="fmStorageChips" class="fm-storage-chips"></div>
+
+              <!-- Breadcrumb Trail -->
+              <div id="fmBreadcrumbs" class="fm-breadcrumbs"></div>
+
+              <!-- Task Progress Indicator (for Copy, Move, Extract, Upload) -->
+              <div id="fmTaskProgressBar" class="fm-task-progress-card" style="display: none;">
+                <div class="fm-task-progress-header">
+                  <div class="fm-task-progress-title">
+                    <span id="fmTaskIcon">
+                      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </span>
+                    <span id="fmTaskStatusText">Processing...</span>
+                  </div>
+                  <div class="fm-task-progress-meta">
+                    <span id="fmTaskDetailText" class="fm-task-detail"></span>
+                    <span id="fmTaskPercentText" class="fm-task-pct">0%</span>
+                    <button id="fmTaskCancelBtn" class="btn btn-secondary btn-sm text-danger" title="Cancel Task" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem; height: auto;">
+                      <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="progress-bar-bg" style="height: 6px; margin-top: 0.35rem;">
+                  <div id="fmTaskProgressFill" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <!-- Upload Progress Indicator (legacy fallback) -->
+              <div id="fmUploadProgressBar" style="display: none; padding: 0.5rem 1rem; background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+                <div id="fmUploadStatusText" style="font-size: 0.8rem; margin-bottom: 0.25rem;">Uploading...</div>
+                <div class="progress-bar-bg" style="height: 4px; margin-bottom: 0;">
+                  <div id="fmUploadProgressFill" class="progress-bar-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+
+              <!-- Content Area & Dropzone -->
+              <div id="fmContentArea" class="fm-content">
+                <div id="fmDropOverlay" class="fm-drop-overlay">
+                  Drop files to upload here
+                </div>
+
+                <table class="file-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px; text-align: center;">
+                        <input type="checkbox" id="fmSelectAll">
+                      </th>
+                      <th>Name</th>
+                      <th style="width: 120px;">Size</th>
+                      <th style="width: 160px;">Modified</th>
+                      <th style="width: 140px; text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fmTableBody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- VIEW 3: DOWNLOADS (AriaNg Style) -->
+          <section id="downloadsView" class="view-section">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">Download Manager</h2>
+                <p class="section-desc">Integrated Aria2 engine for HTTP, HTTPS, BitTorrent, and Magnet downloads</p>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button id="openAddDownloadModalBtn" class="btn btn-primary btn-sm">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>New Download</span>
+                </button>
+                <button id="openGlobalLimitsModalBtn" class="btn btn-secondary btn-sm" title="Configure default download directory and bandwidth limits">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Settings & Limits</span>
+                </button>
+                <span id="dlGlobalLimitHeaderPill" class="badge-tag" style="display: none; background: rgba(56, 189, 248, 0.15); color: var(--accent-primary); border: 1px solid rgba(56, 189, 248, 0.35);"></span>
+                <button id="refreshDownloadsBtn" class="btn btn-secondary btn-icon btn-sm" title="Refresh">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="downloads-container">
+              <!-- Stats Row -->
+              <div class="download-stat-cards">
+                <div class="card" style="padding: 1rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <span class="detail-label" style="font-size: 0.75rem;">TOTAL DOWNLOAD SPEED</span>
+                    <span id="dlGlobalLimitSub" style="display: none; font-size: 0.72rem; color: var(--accent-primary); font-weight: 500;"></span>
+                  </div>
+                  <div id="dlTotalSpeed" class="metric-big" style="font-size: 1.5rem; color: var(--color-success); margin-top: 0.25rem;">0 B/s</div>
+                </div>
+                <div class="card" style="padding: 1rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <span class="detail-label" style="font-size: 0.75rem;">TOTAL UPLOAD SPEED</span>
+                    <span id="ulGlobalLimitSub" style="display: none; font-size: 0.72rem; color: var(--accent-primary); font-weight: 500;"></span>
+                  </div>
+                  <div id="ulTotalSpeed" class="metric-big" style="font-size: 1.5rem; color: var(--color-warning); margin-top: 0.25rem;">0 B/s</div>
+                </div>
+                <div class="card" style="padding: 1rem;">
+                  <span class="detail-label" style="font-size: 0.75rem;">ACTIVE TASKS</span>
+                  <div id="dlActiveCount" class="metric-big" style="font-size: 1.5rem; color: var(--accent-primary); margin-top: 0.25rem;">0</div>
+                </div>
+                <div class="card" style="padding: 1rem;">
+                  <span class="detail-label" style="font-size: 0.75rem;">WAITING / PAUSED</span>
+                  <div id="dlWaitingCount" class="metric-big" style="font-size: 1.5rem; color: var(--text-secondary); margin-top: 0.25rem;">0</div>
+                </div>
+              </div>
+
+              <!-- Filter Tabs -->
+              <div style="display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                <button class="btn btn-secondary btn-sm dl-filter-tab active" data-filter="all">All</button>
+                <button class="btn btn-secondary btn-sm dl-filter-tab" data-filter="active">Downloading</button>
+                <button class="btn btn-secondary btn-sm dl-filter-tab" data-filter="waiting">Waiting / Paused</button>
+                <button class="btn btn-secondary btn-sm dl-filter-tab" data-filter="completed">Completed</button>
+                <button class="btn btn-secondary btn-sm dl-filter-tab" data-filter="error">Errors</button>
+              </div>
+
+              <!-- Download Tasks List -->
+              <div id="downloadsList" class="download-list">
+                <!-- Items populated dynamically -->
+              </div>
+            </div>
+          </section>
+
+          <!-- VIEW 4: SETTINGS & USER MANAGEMENT -->
+          <section id="settingsView" class="view-section">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">Settings & Administration</h2>
+                <p class="section-desc">Filesystem access limits, default download paths, and RBAC user permissions</p>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <!-- Admin Storage & Download Settings -->
+              <div class="card admin-only-section">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                    <span>Storage Roots & Default Directory</span>
+                  </div>
+                </div>
+                <form id="appSettingsForm">
+                  <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                      <label class="form-label" style="margin-bottom: 0;">Global Allowed Storage Roots</label>
+                      <button type="button" id="btnAddAllowedRoot" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; font-size: 0.78rem;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>+ Add Folder</span>
+                      </button>
+                    </div>
+                    <div id="allowedRootsList" class="allowed-roots-container"></div>
+                    <textarea id="settingAllowedRoots" class="form-control" rows="2" style="display: none;"></textarea>
+                    <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.35rem;">Click <strong>+ Add Folder</strong> to visually browse server drives and select allowed storage paths.</small>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Default Download Directory</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <input type="text" id="settingDefaultDlDir" class="form-control" placeholder="/DATA/HDD/Downloads">
+                      <button type="button" id="btnBrowseDefaultDlDir" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span>Browse</span>
+                      </button>
+                    </div>
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">Click Browse to select from server folders, or type a custom path.</small>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm">Save Configuration</button>
+                </form>
+              </div>
+
+              <!-- User Management (Admin Only) -->
+              <div class="card admin-only-section">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>User Management (RBAC)</span>
+                  </div>
+                  <button id="openCreateUserModalBtn" class="btn btn-primary btn-sm">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Add User</span>
+                  </button>
+                </div>
+                <div style="overflow-x: auto;">
+                  <table class="file-table">
+                    <thead>
+                      <tr>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Allowed Roots</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Change Password Form -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Change My Password</span>
+                  </div>
+                </div>
+                <form id="changePasswordForm" style="max-width: 400px;">
+                  <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" id="pwdOld" class="form-control" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">New Password (min 6 chars)</label>
+                    <input type="password" id="pwdNew" class="form-control" required minlength="6">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" id="pwdConfirm" class="form-control" required minlength="6">
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm">Update Password</button>
+                </form>
+              </div>
+
+              <!-- Hardware Platform Notes -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span>Hardware Profile & Limitations</span>
+                  </div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+                  <p><strong>Platform:</strong> ASUS ZenBook 13 UX331UAL (Intel Core i7-8550U, Linux 7.0 generic, Ubuntu 24.04)</p>
+                  <p style="margin-top: 0.5rem;"><strong>Sensors:</strong> CPU package and core temperatures obtained via standard Linux <code>hwmon</code>. Fan RPM read directly from ASUS WMI interface. If any sensor is disconnected or unsupported, it gracefully reports as unavailable without failing.</p>
+                  <p style="margin-top: 0.5rem;"><strong>Security:</strong> Running under an unprivileged user process. SMART attributes require root device ioctls and are marked unavailable to preserve the principle of least privilege.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- MODAL 1: Add Download -->
+    <div id="addDownloadModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">New Download Task</div>
+          <button id="closeAddDownloadModalBtn" class="modal-close">&times;</button>
+        </div>
+        <form id="addDownloadForm">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Download URLs / Magnet Links (one per line)</label>
+              <textarea id="addDownloadUrls" class="form-control" rows="3" placeholder="https://example.com/file.iso&#10;magnet:?xt=urn:btih:..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Or Select .torrent File</label>
+              <input type="file" id="addTorrentFileInput" class="form-control" accept=".torrent">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Destination Directory (Optional)</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="addDownloadDestInput" class="form-control" placeholder="/DATA/HDD/Downloads">
+                <button type="button" id="btnBrowseDownloadDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span>Browse</span>
+                </button>
+              </div>
+              <small id="addDownloadDestHelper" style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to use default download folder.</small>
+              <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                <input type="checkbox" id="addDownloadSaveDefaultCheckbox" style="cursor: pointer;">
+                <label for="addDownloadSaveDefaultCheckbox" style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Save this folder as the default download location</label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Speed Limit (KB/s, 0 = unlimited)</label>
+              <input type="number" id="addDownloadLimitInput" class="form-control" min="0" value="0">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" onclick="document.getElementById('addDownloadModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Start Download</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 2: Global Speed Limits & Settings -->
+    <div id="globalLimitsModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Download Settings & Rate Limits</div>
+          <button id="closeGlobalLimitsModalBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Default Download Directory</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="globalDefaultDlDirInput" class="form-control" placeholder="/DATA/HDD/Downloads">
+              <button type="button" id="btnBrowseGlobalDefaultDlDir" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span>Browse</span>
+              </button>
+            </div>
+            <small style="color: var(--text-muted); font-size: 0.78rem;">New downloads without a specific path will save to this directory.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Overall Download Speed (KB/s, 0 = unlimited)</label>
+            <input type="number" id="globalDownloadLimitInput" class="form-control" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max Overall Upload Speed (KB/s, 0 = unlimited)</label>
+            <input type="number" id="globalUploadLimitInput" class="form-control" min="0" value="0">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" onclick="document.getElementById('globalLimitsModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+          <button id="saveGlobalLimitsBtn" type="button" class="btn btn-primary btn-sm">Save Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 3: Create User -->
+    <div id="createUserModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Create User Account</div>
+          <button id="closeCreateUserModalBtn" class="modal-close">&times;</button>
+        </div>
+        <form id="createUserForm">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="newUsername" class="form-control" required minlength="3">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="newUserPassword" class="form-control" required minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select id="newUserRole" class="form-control">
+                <option value="user">User (Restricted)</option>
+                <option value="admin">Administrator (Full Access)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Custom Allowed Roots (optional, one per line)</label>
+              <textarea id="newUserRoots" class="form-control" rows="2" placeholder="/DATA/HDD/UserFolder"></textarea>
+              <small style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to inherit global allowed roots.</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" onclick="document.getElementById('createUserModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Create User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 4: Item Info -->
+    <div id="fileInfoModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Item Information</div>
+          <button onclick="document.getElementById('fileInfoModal').classList.remove('active')" class="modal-close">&times;</button>
+        </div>
+        <div id="fileInfoModalBody" class="modal-body"></div>
+        <div class="modal-footer">
+          <button onclick="document.getElementById('fileInfoModal').classList.remove('active')" class="btn btn-secondary btn-sm">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 5: Copy or Move Items -->
+    <div id="fmTransferModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div id="fmTransferModalTitle" class="modal-title">Copy or Move Items</div>
+          <button type="button" id="closeTransferModalBtn" class="modal-close">&times;</button>
+        </div>
+        <form id="fmTransferForm">
+          <div class="modal-body">
+            <!-- Mode selector -->
+            <div class="transfer-type-selector">
+              <label class="transfer-type-option">
+                <input type="radio" name="fmTransferAction" value="copy" checked>
+                <span>Copy (duplicate)</span>
+              </label>
+              <label class="transfer-type-option">
+                <input type="radio" name="fmTransferAction" value="move">
+                <span>Move (cut & relocate)</span>
+              </label>
+            </div>
+
+            <!-- Items summary -->
+            <div style="margin-bottom: 1rem;">
+              <label class="form-label">Items to transfer:</label>
+              <div id="fmTransferItemList" style="font-size: 0.85rem; color: var(--text-secondary); max-height: 80px; overflow-y: auto; background-color: var(--bg-primary); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-family: var(--font-mono);"></div>
+            </div>
+
+            <!-- Destination input -->
+            <div class="form-group">
+              <label class="form-label">Destination Directory</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="fmTransferDestInput" class="form-control" placeholder="/DATA/HDD/..." required>
+                <button type="button" id="btnBrowseTransferDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span>Browse</span>
+                </button>
+              </div>
+              <small style="color: var(--text-muted); font-size: 0.78rem;">Enter the full directory path or pick a quick location below.</small>
+            </div>
+
+            <!-- Quick destination chips -->
+            <div>
+              <label class="form-label" style="margin-bottom: 0.25rem;">Quick Locations:</label>
+              <div id="fmTransferQuickDestList" class="quick-dest-list"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="cancelTransferModalBtn" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="submit" id="submitTransferModalBtn" class="btn btn-primary btn-sm">Transfer Items</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 6: Interactive Folder Browser -->
+    <div id="folderBrowserModal" class="modal-overlay">
+      <div class="modal folder-browser-modal">
+        <div class="modal-header">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-primary);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span id="folderBrowserTitle">Select Directory</span>
+          </div>
+          <button type="button" id="closeFolderBrowserBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" style="padding-bottom: 0.5rem;">
+          <!-- Quick Storage Locations -->
+          <div>
+            <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Storage Locations:</label>
+            <div id="fbQuickLocations" class="fb-quick-locations"></div>
+          </div>
+
+          <!-- Breadcrumbs -->
+          <div id="fbBreadcrumbs" class="fb-breadcrumbs"></div>
+
+          <!-- Directory List -->
+          <div id="fbDirList" class="fb-dir-list"></div>
+
+          <!-- Create New Folder Inline -->
+          <div class="fb-new-folder-bar">
+            <input type="text" id="fbNewFolderName" class="form-control" placeholder="New folder name..." style="font-size: 0.82rem; padding: 0.35rem 0.6rem;">
+            <button type="button" id="fbCreateFolderBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; font-size: 0.78rem;">+ New Folder</button>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1; overflow: hidden; margin-right: 0.75rem;">
+            <div style="font-size: 0.7rem; color: var(--text-muted);">Selected Target:</div>
+            <div id="fbCurrentPathDisplay" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">/</div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+            <button type="button" id="cancelFolderBrowserBtn" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="button" id="confirmFolderBrowserBtn" class="btn btn-primary btn-sm">Choose This Folder</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Universal Confirmation Dialog Modal -->
+    <div id="confirmDialogModal" class="modal-overlay">
+      <div class="modal" style="max-width: 440px; width: 92%;">
+        <div class="modal-header">
+          <h3 id="confirmDialogTitle" class="modal-title">Confirm Action</h3>
+          <button type="button" id="closeConfirmDialogBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmDialogMessage" style="color: var(--text-secondary); line-height: 1.5; margin: 0 0 0.5rem 0; font-size: 0.9rem;"></p>
+          <div id="confirmDialogCheckboxContainer" style="display: none; align-items: center; gap: 0.5rem; margin-top: 0.85rem; padding: 0.5rem 0.75rem; background-color: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+            <input type="checkbox" id="confirmDialogCheckbox" style="cursor: pointer;">
+            <label for="confirmDialogCheckbox" id="confirmDialogCheckboxLabel" style="font-size: 0.85rem; color: var(--text-primary); cursor: pointer; user-select: none; margin: 0;"></label>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" id="cancelConfirmDialogBtn" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="button" id="okConfirmDialogBtn" class="btn btn-danger btn-sm">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="/static/js/app.js?v=20260909_2"></script>
+</body>
+</html>

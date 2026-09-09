@@ -1,0 +1,28 @@
+# Python cache & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+
+# Testing & Linters
+.pytest_cache/
+.coverage
+htmlcov/
+
+# HomeDock runtime data, databases, secrets, and logs
+data/*
+!data/.gitkeep
+*.log
+
+# Environment & IDE files
+.env
+.env.*
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store

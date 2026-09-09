@@ -1,0 +1,24 @@
+[Unit]
+Description=HomeDock — Lightweight Web-Based Server Manager
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/asus/homedock
+ExecStart=/home/asus/homedock/run.sh
+Restart=always
+RestartSec=3
+KillMode=process
+TimeoutStopSec=10
+NoNewPrivileges=true
+LimitNOFILE=65535
+
+# Environment
+Environment=HOMEDOCK_HOST=0.0.0.0
+Environment=HOMEDOCK_PORT=8090
+Environment=PYTHONPATH=/home/asus/homedock
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target
