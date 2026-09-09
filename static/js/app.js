@@ -157,6 +157,13 @@ class App {
       fileManagerComponent.loadMountedDrives();
       showToast("Storage device change detected", "info");
     });
+
+    // User profile update event (e.g., username change)
+    window.addEventListener("homedock:user_updated", (e) => {
+      if (e.detail && e.detail.user) {
+        this.showAppView(e.detail.user);
+      }
+    });
   }
 
   async checkAuth() {

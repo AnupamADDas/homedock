@@ -99,6 +99,20 @@ class ApiService {
     });
   }
 
+  async changeUsername(newUsername, currentPassword) {
+    const data = await this.request("/api/auth/change-username", {
+      method: "POST",
+      body: JSON.stringify({ new_username: newUsername, current_password: currentPassword }),
+    });
+    if (data.access_token) {
+      this.setToken(data.access_token);
+    }
+    if (data.user) {
+      this.currentUser = data.user;
+    }
+    return data;
+  }
+
   // System & Storage
   async getMetrics() {
     return await this.request("/api/system/metrics");

@@ -584,6 +584,31 @@
                 </div>
               </div>
 
+              <!-- Change Username Form -->
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Change My Username</span>
+                  </div>
+                </div>
+                <form id="changeUsernameForm" style="max-width: 400px;">
+                  <div class="form-group">
+                    <label class="form-label">Current Username</label>
+                    <input type="text" id="currentUsernameDisplay" class="form-control" readonly disabled style="opacity: 0.8; cursor: not-allowed;">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">New Username (3-50 characters)</label>
+                    <input type="text" id="unameNew" class="form-control" required minlength="3" maxlength="50" autocomplete="username" placeholder="Enter new username">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Current Password (for security verification)</label>
+                    <input type="password" id="unamePwd" class="form-control" required autocomplete="current-password" placeholder="Verify with current password">
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm">Update Username</button>
+                </form>
+              </div>
+
               <!-- Change Password Form -->
               <div class="card">
                 <div class="card-header">
@@ -742,6 +767,52 @@
           <div class="modal-footer">
             <button type="button" onclick="document.getElementById('createUserModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
             <button type="submit" class="btn btn-primary btn-sm">Create User</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3b: Edit User -->
+    <div id="editUserModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Edit User Account</div>
+          <button id="closeEditUserModalBtn" class="modal-close">&times;</button>
+        </div>
+        <form id="editUserForm">
+          <input type="hidden" id="editUserId">
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="editUsername" class="form-control" required minlength="3" maxlength="50">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select id="editUserRole" class="form-control">
+                <option value="user">User (Restricted)</option>
+                <option value="admin">Administrator (Full Access)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Account Status</label>
+              <select id="editUserActive" class="form-control">
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Reset Password (optional)</label>
+              <input type="password" id="editUserPassword" class="form-control" placeholder="Leave blank to keep current password" minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Custom Allowed Roots (optional, one per line)</label>
+              <textarea id="editUserRoots" class="form-control" rows="2" placeholder="/DATA/HDD/UserFolder"></textarea>
+              <small style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to inherit global allowed roots.</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" onclick="document.getElementById('editUserModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
           </div>
         </form>
       </div>

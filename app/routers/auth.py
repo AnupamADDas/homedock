@@ -28,6 +28,10 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str = Field(min_length=6)
 
+class ChangeUsernameRequest(BaseModel):
+    new_username: str = Field(min_length=3, max_length=50)
+    current_password: str
+
 @router.post("/login")
 async def login(req: LoginRequest, request: Request, response: Response):
     client_ip = request.client.host if request.client else "unknown"
@@ -116,3 +120,61 @@ async def change_password(req: ChangePasswordRequest, current_user: Dict[str, An
         conn.commit()
 
     return {"message": "Password updated successfully"}
+
+@router.post("/change-username")
+async def change_username(req: ChangeUsernameRequest, response: Response, current_user: Dict[str, Any] = Depends(get_current_user)):
+    new_username = req.new_username.strip()
+    if len(new_username) < 3 or len(new_username) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username must be between 3 and 50 characters"
+        )
+
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT password_hash FROM users WHERE id = ?", (current_user["id"],))
+        row = cursor.fetchone()
+        if not row or not verify_password(req.current_password, row["password_hash"]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password verification failed"
+            )
+
+        # Check if another user already has this username
+        cursor.execute("SELECT id FROM users WHERE username = ? AND id != ?", (new_username, current_user["id"]))
+        if cursor.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username already exists"
+            )
+
+        cursor.execute("UPDATE users SET username = ? WHERE id = ?", (new_username, current_user["id"]))
+        conn.commit()
+
+    # Revoke old token if present
+    old_token = current_user.get("token")
+    if old_token:
+        revoke_token(old_token)
+
+    # Issue new access token with the updated username claim
+    new_token = create_access_token(current_user["id"], new_username, current_user["role"])
+
+    response.set_cookie(
+        key="homedock_token",
+        value=new_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=86400 * 7
+    )
+
+    return {
+        "access_token": new_token,
+        "token_type": "bearer",
+        "message": "Username updated successfully",
+        "user": {
+            "id": current_user["id"],
+            "username": new_username,
+            "role": current_user["role"]
+        }
+    }

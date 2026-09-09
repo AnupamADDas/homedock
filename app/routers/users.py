@@ -21,6 +21,7 @@ class CreateUserRequest(BaseModel):
     allowed_roots: Optional[List[str]] = None
 
 class UpdateUserRequest(BaseModel):
+    username: Optional[str] = Field(None, min_length=3, max_length=50)
     role: Optional[str] = None
     is_active: Optional[bool] = None
     allowed_roots: Optional[List[str]] = None
@@ -79,6 +80,16 @@ async def update_user(user_id: int, req: UpdateUserRequest, admin_user: Dict[str
 
         updates = []
         params = []
+
+        if req.username is not None:
+            new_username = req.username.strip()
+            if len(new_username) < 3 or len(new_username) > 50:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username must be between 3 and 50 characters")
+            cursor.execute("SELECT id FROM users WHERE username = ? AND id != ?", (new_username, user_id))
+            if cursor.fetchone():
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+            updates.append("username = ?")
+            params.append(new_username)
 
         if req.role is not None:
             if req.role not in ("admin", "user"):
