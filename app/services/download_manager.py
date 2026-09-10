@@ -22,6 +22,20 @@ from app.config import (
 )
 from app.database import get_setting
 
+PUBLIC_TRACKERS = (
+    "udp://tracker.opentrackr.org:1337/announce,"
+    "udp://open.stealth.si:80/announce,"
+    "udp://tracker.torrent.eu.org:451/announce,"
+    "udp://tracker.bittor.pw:1337/announce,"
+    "udp://public.tracker.vraphim.com:6969/announce,"
+    "udp://tracker.moeking.me:6969/announce,"
+    "udp://explodie.org:6969/announce,"
+    "udp://exodus.desync.com:6969/announce,"
+    "http://tracker.openbittorrent.com:80/announce,"
+    "udp://tracker.dler.org:6969/announce,"
+    "udp://tracker.tiny-vps.com:6969/announce"
+)
+
 class DownloadManagerService:
     def __init__(self):
         self._process: Optional[subprocess.Popen] = None
@@ -29,6 +43,7 @@ class DownloadManagerService:
         self._session_file = DATA_DIR / "aria2.session"
         self._log_file = DATA_DIR / "aria2.log"
         self._req_id = 1
+        self._daemon_verified = False
 
     def _is_daemon_alive(self) -> bool:
         """Checks if aria2c daemon is already responding on RPC port."""
@@ -39,12 +54,15 @@ class DownloadManagerService:
             with socket.create_connection((ARIA2_RPC_HOST, ARIA2_RPC_PORT), timeout=0.3):
                 return True
         except (socket.timeout, ConnectionRefusedError, OSError):
+            self._daemon_verified = False
             return False
 
     def ensure_daemon_started(self):
-        """Starts the local aria2c daemon if not already executing with correct socket buffering."""
+        """Starts the local aria2c daemon if not already executing with optimized PulseDL-level socket & chunk settings."""
         if self._is_daemon_alive():
-            # Check if running daemon has proper socket-recv-buffer-size configured
+            if self._daemon_verified:
+                return
+
             needs_restart = False
             try:
                 import urllib.request, json
@@ -61,19 +79,24 @@ class DownloadManagerService:
                 with urllib.request.urlopen(req, timeout=1.0) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     opts = data.get("result", {})
-                    recv_buf = opts.get("socket-recv-buffer-size", "0")
-                    if recv_buf == "0":
+                    # Restart if running daemon has outdated/crippled configurations
+                    if (
+                        opts.get("max-connection-per-server") != "16"
+                        or opts.get("stream-piece-selector") == "geom"
+                        or opts.get("socket-recv-buffer-size") in ("64K", "65536")
+                    ):
                         needs_restart = True
             except Exception:
                 pass
 
             if not needs_restart:
+                self._daemon_verified = True
                 return
 
-            # Restart daemon to apply buffer configuration
             self.stop_daemon()
             time.sleep(0.5)
 
+        self._daemon_verified = False
         if not self._session_file.exists():
             self._session_file.touch()
 
@@ -83,33 +106,44 @@ class DownloadManagerService:
             "--rpc-listen-all=false",
             f"--rpc-listen-port={ARIA2_RPC_PORT}",
             f"--rpc-secret={ARIA2_SECRET}",
-            f"--rpc-max-request-size=10M",
+            "--rpc-max-request-size=64M",
             f"--input-file={str(self._session_file)}",
             f"--save-session={str(self._session_file)}",
             "--save-session-interval=30",
             "--max-concurrent-downloads=5",
             "--continue=true",
-            "--max-connection-per-server=8",
-            "--min-split-size=4M",
-            "--split=8",
-            "--socket-recv-buffer-size=64K",
-            "--disk-cache=16M",
+            "--always-resume=true",
+            "--check-integrity=true",
+            "--max-connection-per-server=16",
+            "--split=16",
+            "--min-split-size=1M",
+            "--piece-length=1M",
+            "--stream-piece-selector=default",
+            "--conditional-get=true",
+            "--disk-cache=64M",
             "--file-allocation=falloc",
             "--optimize-concurrent-downloads=true",
             "--http-accept-gzip=true",
             "--content-disposition-default-utf8=true",
-            "--stream-piece-selector=geom",
             "--timeout=30",
-            "--connect-timeout=15",
-            "--max-tries=5",
-            "--retry-wait=2",
+            "--connect-timeout=30",
+            "--max-tries=10",
+            "--retry-wait=5",
             "--follow-torrent=mem",
             "--listen-port=6881-6999",
             "--dht-listen-port=6881-6999",
             "--enable-dht=true",
+            "--enable-dht6=true",
             "--enable-peer-exchange=true",
+            "--bt-enable-lpd=true",
+            "--bt-max-peers=100",
+            "--bt-request-peer-speed-limit=50M",
+            "--bt-save-metadata=true",
+            "--seed-ratio=1.0",
+            "--seed-time=120",
             "--peer-id-prefix=-HD1000-",
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            f"--bt-tracker={PUBLIC_TRACKERS}",
             f"--log={str(self._log_file)}",
             "--log-level=warn",
             "--quiet=true",
@@ -141,11 +175,13 @@ class DownloadManagerService:
                 start_new_session=True
             )
             time.sleep(0.3)
+            self._daemon_verified = True
         except Exception as e:
             raise RuntimeError(f"Failed to start aria2c daemon: {e}")
 
     def stop_daemon(self):
         """Gracefully stops the aria2c child process."""
+        self._daemon_verified = False
         if self._process and self._process.poll() is None:
             try:
                 self._process.terminate()
@@ -218,9 +254,10 @@ class DownloadManagerService:
         """Queues a new download (HTTP, HTTPS, FTP, Magnet) in destination_dir."""
         options: Dict[str, Any] = {
             "dir": destination_dir,
-            "max-connection-per-server": "8",
-            "split": "8",
-            "min-split-size": "4M",
+            "max-connection-per-server": "16",
+            "split": "16",
+            "min-split-size": "1M",
+            "conditional-get": "true",
         }
         if max_download_limit and max_download_limit > 0:
             options["max-download-limit"] = str(max_download_limit)
@@ -239,8 +276,8 @@ class DownloadManagerService:
         b64_content = base64.b64encode(torrent_bytes).decode("ascii")
         options: Dict[str, Any] = {
             "dir": destination_dir,
-            "max-connection-per-server": "8",
-            "split": "8",
+            "max-connection-per-server": "16",
+            "split": "16",
         }
         if max_download_limit and max_download_limit > 0:
             options["max-download-limit"] = str(max_download_limit)

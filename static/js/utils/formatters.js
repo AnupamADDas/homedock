@@ -41,3 +41,31 @@ export function formatDate(isoStr) {
     return isoStr;
   }
 }
+
+export function parseSpeedLimitStr(str) {
+  if (!str) return 0;
+  const s = String(str).trim().toUpperCase();
+  if (s === "0" || s === "UNLIMITED" || s === "") return 0;
+  if (s.endsWith("G") || s.endsWith("GB") || s.endsWith("G/S") || s.endsWith("GB/S")) {
+    return Math.round(parseFloat(s) * 1024 * 1024 * 1024);
+  }
+  if (s.endsWith("M") || s.endsWith("MB") || s.endsWith("M/S") || s.endsWith("MB/S")) {
+    return Math.round(parseFloat(s) * 1024 * 1024);
+  }
+  if (s.endsWith("K") || s.endsWith("KB") || s.endsWith("K/S") || s.endsWith("KB/S")) {
+    return Math.round(parseFloat(s) * 1024);
+  }
+  const num = parseFloat(s);
+  return isNaN(num) ? 0 : Math.round(num);
+}
+
+export function formatSpeedLimitStr(bytesPerSec) {
+  if (!bytesPerSec || bytesPerSec <= 0) return null;
+  const mb = bytesPerSec / (1024 * 1024);
+  if (mb >= 1) {
+    const rounded = Number.isInteger(mb) ? mb : mb.toFixed(1);
+    return `${rounded} MB/s`;
+  }
+  const kb = Math.round(bytesPerSec / 1024);
+  return `${kb} KB/s`;
+}

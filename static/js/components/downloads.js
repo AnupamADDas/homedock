@@ -5,9 +5,29 @@
  */
 
 import { api, showToast } from "../api.js";
-import { formatBytes, formatSpeed, formatTime } from "../utils/formatters.js";
+import { formatBytes, formatSpeed, formatTime, parseSpeedLimitStr, formatSpeedLimitStr } from "../utils/formatters.js";
 import { folderBrowser } from "./folder_browser.js";
 import { showConfirmDialog } from "./confirm_dialog.js";
+
+function getFileIcon(name = "", isTorrent = false) {
+  if (isTorrent) {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
+  }
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  if (["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"].includes(ext)) {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
+  }
+  if (["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(ext)) {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
+  }
+  if (["mp3", "flac", "wav", "aac", "ogg", "m4a"].includes(ext)) {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>`;
+  }
+  if (["iso", "img", "exe", "bin", "dmg", "apk", "deb", "AppImage"].includes(ext)) {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>`;
+  }
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`;
+}
 
 export class DownloadManagerComponent {
   constructor() {
@@ -147,7 +167,7 @@ export class DownloadManagerComponent {
       });
     });
 
-    // Global Limits & Settings Modal
+    // Global Limits & Settings Modal (PulseDL Style)
     const globalLimitsBtn = document.getElementById("openGlobalLimitsModalBtn");
     const globalLimitsModal = document.getElementById("globalLimitsModal");
     const closeLimitsBtn = document.getElementById("closeGlobalLimitsModalBtn");
@@ -160,8 +180,10 @@ export class DownloadManagerComponent {
           const dlInput = document.getElementById("globalDownloadLimitInput");
           const ulInput = document.getElementById("globalUploadLimitInput");
           const defaultDirInput = document.getElementById("globalDefaultDlDirInput");
-          if (dlInput) dlInput.value = Math.round(parseInt(settings.max_download_limit || "0", 10) / 1024);
-          if (ulInput) ulInput.value = Math.round(parseInt(settings.max_upload_limit || "0", 10) / 1024);
+          const dlBytes = parseInt(settings.max_download_limit || "0", 10);
+          const ulBytes = parseInt(settings.max_upload_limit || "0", 10);
+          if (dlInput) dlInput.value = dlBytes > 0 ? (formatSpeedLimitStr(dlBytes) || "0") : "0";
+          if (ulInput) ulInput.value = ulBytes > 0 ? (formatSpeedLimitStr(ulBytes) || "0") : "0";
           if (defaultDirInput) defaultDirInput.value = this.defaultDir || settings.default_download_dir || "";
           globalLimitsModal.classList.add("active");
         } catch (err) {
@@ -169,6 +191,15 @@ export class DownloadManagerComponent {
         }
       });
     }
+
+    // Global speed presets click
+    document.querySelectorAll(".global-speed-preset-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = btn.dataset.preset;
+        const input = document.getElementById("globalDownloadLimitInput");
+        if (input) input.value = preset === "0" ? "0" : preset;
+      });
+    });
 
     // Browse Global Default Download Dir Button
     const browseGlobalDirBtn = document.getElementById("btnBrowseGlobalDefaultDlDir");
@@ -191,8 +222,8 @@ export class DownloadManagerComponent {
 
     if (saveLimitsBtn && globalLimitsModal) {
       saveLimitsBtn.addEventListener("click", async () => {
-        const dlVal = parseInt(document.getElementById("globalDownloadLimitInput").value || "0", 10) * 1024;
-        const ulVal = parseInt(document.getElementById("globalUploadLimitInput").value || "0", 10) * 1024;
+        const dlVal = parseSpeedLimitStr(document.getElementById("globalDownloadLimitInput").value);
+        const ulVal = parseSpeedLimitStr(document.getElementById("globalUploadLimitInput").value);
         const newDefaultDir = document.getElementById("globalDefaultDlDirInput")?.value?.trim();
         try {
           await api.setGlobalLimits(dlVal, ulVal);
@@ -202,8 +233,58 @@ export class DownloadManagerComponent {
             window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: newDefaultDir } }));
             await this.fetchDefaultDir();
           }
-          showToast("Download settings applied", "success");
+          showToast("Speed limits & download settings applied", "success");
           globalLimitsModal.classList.remove("active");
+          await this.refresh();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    }
+
+    // Single Task Speed Limit Modal (PulseDL Style)
+    const taskSpeedModal = document.getElementById("taskSpeedModal");
+    const closeTaskSpeedBtn = document.getElementById("closeTaskSpeedModalBtn");
+    const taskSpeedSaveBtn = document.getElementById("btnTaskSpeedSave");
+    const taskSpeedClearBtn = document.getElementById("btnTaskSpeedClear");
+
+    if (closeTaskSpeedBtn && taskSpeedModal) {
+      closeTaskSpeedBtn.addEventListener("click", () => taskSpeedModal.classList.remove("active"));
+    }
+
+    document.querySelectorAll(".speed-preset-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = btn.dataset.preset;
+        const input = document.getElementById("inputTaskDlLimit");
+        if (input) input.value = preset === "0" ? "0" : preset;
+      });
+    });
+
+    if (taskSpeedClearBtn && taskSpeedModal) {
+      taskSpeedClearBtn.addEventListener("click", async () => {
+        const gid = document.getElementById("taskSpeedGid").value;
+        if (!gid) return;
+        try {
+          await api.setDownloadLimit(gid, 0);
+          showToast("Speed limit cleared (unlimited)", "success");
+          taskSpeedModal.classList.remove("active");
+          await this.refresh();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    }
+
+    if (taskSpeedSaveBtn && taskSpeedModal) {
+      taskSpeedSaveBtn.addEventListener("click", async () => {
+        const gid = document.getElementById("taskSpeedGid").value;
+        const valStr = document.getElementById("inputTaskDlLimit").value.trim();
+        const limitBytes = parseSpeedLimitStr(valStr);
+        if (!gid) return;
+        try {
+          await api.setDownloadLimit(gid, limitBytes);
+          showToast(limitBytes > 0 ? `Speed limit set to ${formatSpeedLimitStr(limitBytes)}` : "Speed limit removed (unlimited)", "success");
+          taskSpeedModal.classList.remove("active");
           await this.refresh();
         } catch (err) {
           showToast(err.message, "error");
@@ -258,10 +339,11 @@ export class DownloadManagerComponent {
     if (activeCountEl) activeCountEl.textContent = s.num_active;
     if (waitingCountEl) waitingCountEl.textContent = s.num_waiting + s.num_stopped;
 
-    // Global speed limits display in stat cards and header badge
+    // Global speed limits display in stat cards and header badge (PulseDL Style)
     const dlLimitSub = document.getElementById("dlGlobalLimitSub");
     const ulLimitSub = document.getElementById("ulGlobalLimitSub");
     const headerLimitPill = document.getElementById("dlGlobalLimitHeaderPill");
+    const headerLimitBtnLabel = document.getElementById("btnSpeedLimitLabel");
 
     const maxDl = s.max_download_limit || 0;
     const maxUl = s.max_upload_limit || 0;
@@ -269,7 +351,8 @@ export class DownloadManagerComponent {
     if (dlLimitSub) {
       if (maxDl > 0) {
         dlLimitSub.style.display = "inline";
-        dlLimitSub.textContent = `Limit: ${formatSpeed(maxDl)}`;
+        dlLimitSub.textContent = `⚡ Limit: ${formatSpeedLimitStr(maxDl)}`;
+        dlLimitSub.style.color = "#f59e0b";
       } else {
         dlLimitSub.style.display = "none";
       }
@@ -278,7 +361,8 @@ export class DownloadManagerComponent {
     if (ulLimitSub) {
       if (maxUl > 0) {
         ulLimitSub.style.display = "inline";
-        ulLimitSub.textContent = `Limit: ${formatSpeed(maxUl)}`;
+        ulLimitSub.textContent = `⚡ Limit: ${formatSpeedLimitStr(maxUl)}`;
+        ulLimitSub.style.color = "#f59e0b";
       } else {
         ulLimitSub.style.display = "none";
       }
@@ -287,12 +371,20 @@ export class DownloadManagerComponent {
     if (headerLimitPill) {
       if (maxDl > 0 || maxUl > 0) {
         const parts = [];
-        if (maxDl > 0) parts.push(`↓ ${formatSpeed(maxDl)}`);
-        if (maxUl > 0) parts.push(`↑ ${formatSpeed(maxUl)}`);
+        if (maxDl > 0) parts.push(`⬇ ${formatSpeedLimitStr(maxDl)}`);
+        if (maxUl > 0) parts.push(`⬆ ${formatSpeedLimitStr(maxUl)}`);
         headerLimitPill.style.display = "inline-flex";
         headerLimitPill.textContent = `⚡ Limit: ${parts.join(" | ")}`;
       } else {
         headerLimitPill.style.display = "none";
+      }
+    }
+
+    if (headerLimitBtnLabel) {
+      if (maxDl > 0) {
+        headerLimitBtnLabel.textContent = `Limit: ${formatSpeedLimitStr(maxDl)}`;
+      } else {
+        headerLimitBtnLabel.textContent = "Speed Limits";
       }
     }
   }
@@ -326,56 +418,81 @@ export class DownloadManagerComponent {
       const isActive = item.status === "active";
       const isError = item.status === "error";
       const isComplete = item.status === "complete";
+      const isWaiting = item.status === "waiting";
       const taskLimit = item.max_download_limit || 0;
 
       let statusBadge = `<span class="badge-tag" style="background: var(--bg-tertiary); color: var(--text-secondary);">${item.status}</span>`;
       if (isActive) {
-        statusBadge = `<span class="badge-tag" style="background: var(--color-success-alpha); color: var(--color-success);">DOWNLOADING</span>`;
+        statusBadge = `<span class="badge-dl-active"><span class="download-pulse-dot"></span>Active</span>`;
       } else if (isPaused) {
-        statusBadge = `<span class="badge-tag" style="background: var(--color-warning-alpha); color: var(--color-warning);">PAUSED</span>`;
+        statusBadge = `<span class="badge-dl-paused">Paused</span>`;
       } else if (isComplete) {
-        statusBadge = `<span class="badge-tag" style="background: var(--accent-primary-alpha); color: var(--accent-primary);">COMPLETED</span>`;
+        statusBadge = `<span class="badge-dl-complete">✓ Complete</span>`;
+      } else if (isWaiting) {
+        statusBadge = `<span class="badge-dl-waiting">Waiting</span>`;
       } else if (isError) {
-        statusBadge = `<span class="badge-tag" style="background: var(--color-danger-alpha); color: var(--color-danger);">ERROR</span>`;
+        statusBadge = `<span class="badge-dl-error">Error</span>`;
       }
 
-      const limitBadge = taskLimit > 0
-        ? `<span class="badge-tag" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-primary); border: 1px solid rgba(56, 189, 248, 0.35); font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.25rem;" title="Speed limit: ${formatSpeed(taskLimit)}">
-            <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Max: ${formatSpeed(taskLimit)}</span>
+      const limitFormatted = formatSpeedLimitStr(taskLimit);
+      const limitBadge = limitFormatted
+        ? `<span class="download-badge-speed-limit" title="Speed limit active: ${limitFormatted}">
+            <svg viewBox="0 0 24 24" width="12" height="12" stroke="#f59e0b" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>Limit: ${limitFormatted}</span>
           </span>`
         : "";
 
       let fillClass = "";
-      if (isPaused) fillClass = "paused";
-      if (isError) fillClass = "error";
+      if (isActive) fillClass = "active";
+      else if (isPaused) fillClass = "paused";
+      else if (isComplete) fillClass = "complete";
+      else if (isError) fillClass = "error";
+
+      const iconSvg = getFileIcon(item.name, item.is_bittorrent);
+
+      let speedOrStatusHtml = "";
+      if (isActive) {
+        speedOrStatusHtml = `
+          ${item.download_speed > 0 ? `<span style="color: #10b981; font-weight: 600;">⬇ ${formatSpeed(item.download_speed)}</span>` : '<span style="color: var(--text-muted);">⬇ 0 B/s</span>'}
+          ${item.upload_speed > 0 ? `<span style="color: #60a5fa;">⬆ ${formatSpeed(item.upload_speed)}</span>` : ''}
+          <span style="color: var(--text-muted);">ETA: ${item.eta_seconds ? formatTime(item.eta_seconds) : "--"}</span>
+        `;
+      } else if (isPaused) {
+        speedOrStatusHtml = `<span style="color: #fbbf24; font-weight: 600;">⏸ Paused</span> <span style="color: var(--text-muted); margin-left: 0.4rem;">ETA: --</span>`;
+      } else if (isComplete) {
+        speedOrStatusHtml = `<span style="color: #10b981; font-weight: 600;">✓ Complete</span>`;
+      } else if (isWaiting) {
+        speedOrStatusHtml = `<span style="color: #60a5fa; font-weight: 600;">Waiting</span>`;
+      } else if (isError) {
+        speedOrStatusHtml = `<span style="color: #f43f5e; font-weight: 600;">Failed</span>`;
+      }
 
       return `
         <div class="download-item" data-gid="${item.gid}">
           <div class="download-item-header">
-            <div style="flex: 1; overflow: hidden;">
-              <div class="download-item-title" title="${item.name}">${item.name}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
-                Destination: <code style="font-size: 0.72rem;">${item.dir || "--"}</code>
+            <!-- Icon and Main Titles (PulseDL Style) -->
+            <div class="download-item-main">
+              <div class="download-item-icon-box">
+                ${iconSvg}
+              </div>
+              <div class="download-item-titles">
+                <div class="download-item-title-row">
+                  <h4 class="download-item-title" title="${item.name}">${item.name}</h4>
+                  ${statusBadge}
+                  ${limitBadge}
+                </div>
+                <div class="download-item-subtitle">
+                  <span class="download-item-path btn-copy-path" data-path="${item.dir || ''}" title="Click to copy path: ${item.dir || ''}">
+                    📁 ${item.dir || '--'}
+                  </span>
+                  ${item.connections > 0 ? `<span>• 🔗 ${item.connections} conns</span>` : (isPaused ? '<span style="color: #fbbf24;">• ⏸ Paused</span>' : '')}
+                  ${item.num_seeders > 0 ? `<span>• ⬆ ${item.num_seeders} seeds</span>` : ''}
+                  ${limitFormatted ? `<span style="color: #fbbf24; font-weight: 500;">• ⚡ Max ${limitFormatted}</span>` : ''}
+                </div>
               </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-              ${limitBadge}
-              ${statusBadge}
-            </div>
-          </div>
 
-          <div class="download-progress-bar">
-            <div class="download-progress-fill ${fillClass}" style="width: ${item.percent}%;"></div>
-          </div>
-
-          <div class="download-item-meta">
-            <div>
-              <span>${formatBytes(item.completed_bytes)} / ${formatBytes(item.total_bytes)} (${item.percent}%)</span>
-              ${isActive ? `<span style="margin-left: 0.75rem; color: var(--color-success);">↓ ${formatSpeed(item.download_speed)} ${taskLimit > 0 ? `<span style="color: var(--accent-primary); font-size: 0.75rem;">(capped at ${formatSpeed(taskLimit)})</span>` : ""}</span>` : ""}
-              ${item.eta_seconds ? `<span style="margin-left: 0.75rem; color: var(--text-muted);">ETA: ${formatTime(item.eta_seconds)}</span>` : ""}
-            </div>
-
+            <!-- Action Controls (PulseDL Style) -->
             <div class="download-item-actions">
               ${isActive ? `
                 <button class="btn btn-secondary btn-icon btn-sm btn-pause-dl" data-gid="${item.gid}" title="Pause">
@@ -384,7 +501,7 @@ export class DownloadManagerComponent {
               ` : ""}
               ${isPaused ? `
                 <button class="btn btn-secondary btn-icon btn-sm btn-unpause-dl" data-gid="${item.gid}" title="Resume">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="#10b981" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
               ` : ""}
               ${isError ? `
@@ -392,10 +509,11 @@ export class DownloadManagerComponent {
                   <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
               ` : ""}
-              <button class="btn btn-secondary btn-icon btn-sm btn-limit-dl ${taskLimit > 0 ? 'active' : ''}" data-gid="${item.gid}" data-limit="${taskLimit}" title="Set Speed Limit (Current: ${taskLimit > 0 ? formatSpeed(taskLimit) : 'Unlimited'})">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <!-- Speed Limit button with lightning bolt icon, active highlight -->
+              <button class="btn btn-secondary btn-icon btn-sm btn-limit-dl ${taskLimit > 0 ? 'active' : ''}" data-gid="${item.gid}" data-limit="${taskLimit}" title="${limitFormatted ? `Speed Limit: ${limitFormatted} (Click to change)` : 'Set Speed Limit for this task'}">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="#f59e0b" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               </button>
-              ${(isActive || isPaused || item.status === "waiting") ? `
+              ${(isActive || isPaused || isWaiting) ? `
                 <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
                   <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -407,8 +525,25 @@ export class DownloadManagerComponent {
             </div>
           </div>
 
+          <!-- Progress Bar (PulseDL Style) -->
+          <div class="download-progress-bar">
+            <div class="download-progress-fill ${fillClass}" style="width: ${item.percent}%;"></div>
+          </div>
+
+          <!-- Footer Metadata -->
+          <div class="download-item-meta">
+            <div class="download-meta-left">
+              <span class="download-percent-val">${item.percent}%</span>
+              <span>(${formatBytes(item.completed_bytes)} / ${formatBytes(item.total_bytes)})</span>
+            </div>
+            <div class="download-meta-right">
+              ${speedOrStatusHtml}
+              ${(isActive && limitFormatted) ? `<span style="color: #f59e0b; font-size: 0.73rem; font-weight: 500;">(capped at ${limitFormatted})</span>` : ""}
+            </div>
+          </div>
+
           ${isError && item.error_message ? `
-            <div style="font-size: 0.78rem; color: var(--color-danger); background-color: var(--color-danger-alpha); padding: 0.4rem 0.6rem; border-radius: var(--radius-sm);">
+            <div class="download-error-callout">
               Error: ${item.error_message} (Code ${item.error_code})
             </div>
           ` : ""}
@@ -440,20 +575,35 @@ export class DownloadManagerComponent {
         e.preventDefault();
         e.stopPropagation();
         btn.blur();
+        const gid = btn.dataset.gid;
         const currentBytes = parseInt(btn.dataset.limit || "0", 10);
-        const currentKb = Math.round(currentBytes / 1024);
-        const val = prompt(
-          `Set download rate limit for this task in KB/s (0 = unlimited):\nCurrent limit: ${currentKb > 0 ? `${currentKb} KB/s` : "Unlimited"}`,
-          currentKb > 0 ? currentKb.toString() : "0"
-        );
-        if (val !== null) {
-          const limitBytes = parseInt(val, 10) * 1024;
-          api.setDownloadLimit(btn.dataset.gid, limitBytes)
-            .then(() => {
-              showToast(limitBytes > 0 ? `Speed limit set to ${formatSpeed(limitBytes)}` : "Speed limit removed (unlimited)", "success");
-              this.refresh();
-            })
-            .catch(e => showToast(e.message, "error"));
+        const taskSpeedModal = document.getElementById("taskSpeedModal");
+        const gidInput = document.getElementById("taskSpeedGid");
+        const bannerVal = document.getElementById("taskSpeedCurrentVal");
+        const inputVal = document.getElementById("inputTaskDlLimit");
+
+        if (gidInput) gidInput.value = gid;
+        if (bannerVal) {
+          const disp = formatSpeedLimitStr(currentBytes);
+          bannerVal.textContent = disp || "⚡ Unlimited";
+          bannerVal.style.color = disp ? "#f59e0b" : "#10b981";
+        }
+        if (inputVal) {
+          inputVal.value = currentBytes > 0 ? (formatSpeedLimitStr(currentBytes) || "0") : "0";
+        }
+        if (taskSpeedModal) taskSpeedModal.classList.add("active");
+      });
+    });
+
+    listContainer.querySelectorAll(".btn-copy-path").forEach(span => {
+      span.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const p = span.dataset.path;
+        if (p) {
+          navigator.clipboard.writeText(p).then(() => {
+            showToast(`Copied path: ${p}`, "info", 2000);
+          }).catch(() => {});
         }
       });
     });
