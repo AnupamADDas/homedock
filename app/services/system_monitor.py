@@ -25,6 +25,12 @@ class SystemMonitorService:
         self.last_net_time = time.time()
         self.last_metrics: Dict[str, Any] = {}
         
+        self.last_cpu_power: Optional[float] = None
+        self.last_cpu_energy: Dict[str, int] = {}
+        self.last_cpu_energy_time: Optional[float] = None
+        self._rapl_domains: Optional[Dict[str, Dict[str, Any]]] = None
+        self._powercap_fix_attempted = False
+
         self._running = False
         self._task: Optional[asyncio.Task] = None
         
@@ -32,8 +38,184 @@ class SystemMonitorService:
         try:
             psutil.cpu_percent(interval=None)
             self._init_net_counters()
+            self._init_power_counters()
         except Exception:
             pass
+
+    def _ensure_powercap_permissions(self):
+        """Attempts to ensure /sys/devices/virtual/powercap is readable if permissions were reset."""
+        if self._powercap_fix_attempted:
+            return
+        self._powercap_fix_attempted = True
+        try:
+            import subprocess, shutil
+            if shutil.which("docker"):
+                subprocess.run(
+                    ["docker", "run", "--rm", "--privileged", "-v", "/sys:/sys", "alpine", "chmod", "-R", "a+r", "/sys/devices/virtual/powercap"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=3
+                )
+        except Exception:
+            pass
+
+    def _discover_rapl_domains(self) -> Dict[str, Dict[str, Any]]:
+        """Discovers CPU package RAPL powercap domains for hardware wattage monitoring."""
+        domains = {}
+        search_dirs = ["/sys/class/powercap", "/sys/devices/virtual/powercap"]
+        for base in search_dirs:
+            if not os.path.exists(base):
+                continue
+            try:
+                for entry in sorted(os.listdir(base)):
+                    p = os.path.join(base, entry)
+                    if not os.path.isdir(p):
+                        continue
+                    name_file = os.path.join(p, "name")
+                    energy_file = os.path.join(p, "energy_uj")
+                    max_range_file = os.path.join(p, "max_energy_range_uj")
+                    if not os.path.exists(name_file) or not os.path.exists(energy_file):
+                        continue
+
+                    if not os.access(energy_file, os.R_OK):
+                        self._ensure_powercap_permissions()
+
+                    if not os.access(energy_file, os.R_OK):
+                        continue
+
+                    try:
+                        with open(name_file, "r") as nf:
+                            name = nf.read().strip().lower()
+                        if name.startswith("package") or name in ("core", "cpu"):
+                            max_range = 262143328850
+                            if os.path.exists(max_range_file):
+                                try:
+                                    with open(max_range_file, "r") as mf:
+                                        max_range = int(mf.read().strip())
+                                except Exception:
+                                    pass
+                            # Prefer intel-rapl over mmio if same package
+                            if name not in domains or "mmio" in domains[name]["path"]:
+                                domains[name] = {
+                                    "path": p,
+                                    "energy_file": energy_file,
+                                    "max_range": max_range
+                                }
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            if domains:
+                break
+
+        # If any domain starts with 'package', filter out sub-domain 'core' to avoid double-counting
+        has_package = any(k.startswith("package") for k in domains.keys())
+        if has_package:
+            domains = {k: v for k, v in domains.items() if k.startswith("package")}
+
+        return domains
+
+    def _init_power_counters(self):
+        """Initializes baseline energy readings for CPU power calculation."""
+        try:
+            if self._rapl_domains is None:
+                self._rapl_domains = self._discover_rapl_domains()
+            now = time.time()
+            for name, d in self._rapl_domains.items():
+                try:
+                    with open(d["energy_file"], "r") as f:
+                        self.last_cpu_energy[name] = int(f.read().strip())
+                except Exception:
+                    pass
+            if self.last_cpu_energy:
+                self.last_cpu_energy_time = now
+        except Exception:
+            pass
+
+    def _read_hwmon_cpu_power(self) -> Optional[float]:
+        """Fallback to read CPU power from /sys/class/hwmon if available."""
+        hwmon_dir = "/sys/class/hwmon"
+        if not os.path.exists(hwmon_dir):
+            return None
+        try:
+            for entry in os.listdir(hwmon_dir):
+                entry_path = os.path.join(hwmon_dir, entry)
+                if not os.path.isdir(entry_path):
+                    continue
+                for f in os.listdir(entry_path):
+                    if f.startswith("power") and f.endswith("_input"):
+                        val_path = os.path.join(entry_path, f)
+                        label_path = os.path.join(entry_path, f.replace("_input", "_label"))
+                        label = ""
+                        if os.path.exists(label_path):
+                            try:
+                                with open(label_path, "r") as lf:
+                                    label = lf.read().strip().lower()
+                            except Exception:
+                                pass
+                        name_path = os.path.join(entry_path, "name")
+                        chip_name = ""
+                        if os.path.exists(name_path):
+                            try:
+                                with open(name_path, "r") as nf:
+                                    chip_name = nf.read().strip().lower()
+                            except Exception:
+                                pass
+                        if "cpu" in label or "package" in label or "core" in label or "cpu" in chip_name:
+                            try:
+                                with open(val_path, "r") as vf:
+                                    uw = float(vf.read().strip())
+                                    watts = uw / 1000000.0
+                                    if 0.0 <= watts < 2000.0:
+                                        return round(watts, 1)
+                            except Exception:
+                                pass
+        except Exception:
+            pass
+        return None
+
+    def _sample_cpu_power(self, now: float) -> Optional[float]:
+        """Calculates instantaneous CPU package power in Watts from hardware counters."""
+        if self._rapl_domains is None or not self._rapl_domains:
+            self._rapl_domains = self._discover_rapl_domains()
+            if not self._rapl_domains:
+                return self._read_hwmon_cpu_power()
+
+        if not self.last_cpu_energy or not self.last_cpu_energy_time:
+            self._init_power_counters()
+            return self.last_cpu_power
+
+        dt = now - self.last_cpu_energy_time
+        if dt < 0.1:
+            return self.last_cpu_power
+
+        total_delta_uj = 0.0
+        updated = False
+        new_energies = {}
+
+        for name, d in self._rapl_domains.items():
+            try:
+                with open(d["energy_file"], "r") as f:
+                    e = int(f.read().strip())
+                prev_e = self.last_cpu_energy.get(name)
+                if prev_e is not None:
+                    delta_e = e - prev_e
+                    if delta_e < 0:
+                        delta_e += d["max_range"]
+                    total_delta_uj += delta_e
+                    updated = True
+                new_energies[name] = e
+            except Exception:
+                pass
+
+        if updated and dt > 0:
+            watts = (total_delta_uj / 1000000.0) / dt
+            if 0.0 <= watts < 2000.0:
+                self.last_cpu_power = round(watts, 1)
+
+        self.last_cpu_energy = new_energies
+        self.last_cpu_energy_time = now
+        return self.last_cpu_power
 
     def _init_net_counters(self):
         try:
@@ -213,6 +395,7 @@ class SystemMonitorService:
         # CPU
         cpu_overall = psutil.cpu_percent(interval=None)
         cpu_cores = psutil.cpu_percent(interval=None, percpu=True)
+        cpu_power = self._sample_cpu_power(now)
         try:
             freq = psutil.cpu_freq()
             freq_current = round(freq.current, 0) if freq else None
@@ -296,6 +479,7 @@ class SystemMonitorService:
                 "frequency_mhz": freq_current,
                 "frequency_min": freq_min,
                 "frequency_max": freq_max,
+                "power_watts": cpu_power,
                 "history": list(self.cpu_history),
             },
             "memory": {

@@ -91,12 +91,26 @@ export class DashboardComponent {
         const cpuTempEl = document.getElementById("cpuTempDetail");
         const cpuLoadEl = document.getElementById("cpuLoadDetail");
         const cpuFreqEl = document.getElementById("cpuFreqDetail");
+        const cpuPowerEl = document.getElementById("cpuPowerDetail");
+        const cpuPowerBadgeEl = document.getElementById("cpuPowerBadge");
 
         if (cpuPctEl) cpuPctEl.textContent = `${cpu.usage_percent}%`;
         if (cpuBarEl) cpuBarEl.style.width = `${cpu.usage_percent}%`;
         if (cpuTempEl) cpuTempEl.textContent = cpu.temperature ? `${cpu.temperature}°C` : "Unavailable";
         if (cpuLoadEl) cpuLoadEl.textContent = cpu.load_average ? cpu.load_average.join(", ") : "--";
         if (cpuFreqEl) cpuFreqEl.textContent = cpu.frequency_mhz ? `${cpu.frequency_mhz} MHz` : "--";
+
+        if (cpuPowerEl) {
+          cpuPowerEl.textContent = cpu.power_watts != null ? `${cpu.power_watts.toFixed(1)} W` : "--";
+        }
+        if (cpuPowerBadgeEl) {
+          if (cpu.power_watts != null) {
+            cpuPowerBadgeEl.textContent = `⚡ ${cpu.power_watts.toFixed(1)} W`;
+            cpuPowerBadgeEl.style.display = "inline-flex";
+          } else {
+            cpuPowerBadgeEl.textContent = "-- W";
+          }
+        }
 
         // Per-core mini bars
         const coresContainer = document.getElementById("cpuCoresList");

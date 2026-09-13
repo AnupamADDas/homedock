@@ -513,6 +513,12 @@ body {
   color: var(--accent-primary);
 }
 
+.card-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .card-badge {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
@@ -520,6 +526,17 @@ body {
   font-weight: 600;
   background-color: var(--accent-primary-alpha);
   color: var(--accent-primary);
+}
+
+.badge-cpu-power {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .metric-highlight {
@@ -564,6 +581,16 @@ body {
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-color);
   font-size: 0.82rem;
+}
+
+.metric-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 480px) {
+  .metric-grid-3 {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .detail-item {

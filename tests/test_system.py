@@ -20,6 +20,9 @@ def test_system_metrics_sampling():
     assert len(cpu["cores"]) > 0
     assert len(cpu["load_average"]) == 3
     assert len(cpu["history"]) > 0
+    assert "power_watts" in cpu
+    if cpu["power_watts"] is not None:
+        assert cpu["power_watts"] >= 0.0
 
     # Memory assertions
     mem = metrics["memory"]
