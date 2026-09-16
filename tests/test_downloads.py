@@ -174,3 +174,110 @@ def test_default_download_dir_endpoints(client, auth_headers, test_dir):
     client.post(f"/api/downloads/{gid}/delete", json={"delete_files": True}, headers=auth_headers)
 
 
+def test_youtube_probe_mocked(client, auth_headers):
+    from unittest.mock import patch, AsyncMock
+    from app.services.youtube_downloader import youtube_downloader
+
+    mock_info = {
+        "title": "Rick Astley - Never Gonna Give You Up",
+        "uploader": "RickAstleyVEVO",
+        "duration": 213,
+        "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+        "resolutions": [1080, 720, 480, 360],
+        "is_playlist": False,
+        "playlist_count": 0
+    }
+
+    with patch.object(youtube_downloader, "probe_url", new_callable=AsyncMock) as mock_probe:
+        mock_probe.return_value = mock_info
+        resp = client.post(
+            "/api/downloads/youtube/probe",
+            json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"},
+            headers=auth_headers
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["title"] == "Rick Astley - Never Gonna Give You Up"
+        assert data["resolutions"] == [1080, 720, 480, 360]
+        assert data["duration"] == 213
+
+
+def test_youtube_add_outside_allowed_roots_blocked(client, auth_headers):
+    from unittest.mock import patch, AsyncMock
+    from app.services.youtube_downloader import youtube_downloader
+
+    payload = {
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "destination_dir": "/root/forbidden_media",
+        "media_type": "video"
+    }
+    with patch.object(youtube_downloader, "_run_download_task", new_callable=AsyncMock):
+        resp = client.post("/api/downloads/youtube/add", json=payload, headers=auth_headers)
+        assert resp.status_code == 403
+        assert "outside permitted storage" in resp.json()["detail"].lower()
+
+
+def test_youtube_add_video_and_audio_downloads(client, auth_headers, test_dir):
+    from unittest.mock import patch, AsyncMock
+    from app.services.youtube_downloader import youtube_downloader
+
+    # 1. Add video task
+    video_payload = {
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "destination_dir": test_dir,
+        "media_type": "video",
+        "resolution": "1080",
+        "video_format": "mp4",
+        "embed_thumbnail": True,
+        "embed_metadata": True,
+        "embed_subtitles": False
+    }
+
+    with patch.object(youtube_downloader, "_run_download_task", new_callable=AsyncMock):
+        v_resp = client.post("/api/downloads/youtube/add", json=video_payload, headers=auth_headers)
+        assert v_resp.status_code == 200
+        v_data = v_resp.json()
+        v_gid = v_data["gid"]
+        assert v_gid.startswith("yt-")
+
+        # 2. Add audio task
+        audio_payload = {
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "destination_dir": test_dir,
+            "media_type": "audio",
+            "audio_format": "mp3",
+            "audio_quality": "320",
+            "embed_thumbnail": True,
+            "embed_metadata": True
+        }
+        a_resp = client.post("/api/downloads/youtube/add", json=audio_payload, headers=auth_headers)
+        assert a_resp.status_code == 200
+        a_data = a_resp.json()
+        a_gid = a_data["gid"]
+        assert a_gid.startswith("yt-")
+
+        # 3. Check /api/downloads/list returns both YouTube tasks
+        list_resp = client.get("/api/downloads/list", headers=auth_headers)
+        assert list_resp.status_code == 200
+        items = list_resp.json()
+        v_item = next((i for i in items if i["gid"] == v_gid), None)
+        a_item = next((i for i in items if i["gid"] == a_gid), None)
+
+        assert v_item is not None
+        assert v_item["is_youtube"] is True
+        assert v_item["media_type"] == "video"
+        assert v_item["quality"] == "1080"
+        assert v_item["format_id"] == "mp4"
+
+        assert a_item is not None
+        assert a_item["is_youtube"] is True
+        assert a_item["media_type"] == "audio"
+        assert a_item["quality"] == "320"
+        assert a_item["format_id"] == "mp3"
+
+        # 4. Clean up tasks via unified delete endpoint
+        client.post(f"/api/downloads/{v_gid}/delete", json={"delete_files": True}, headers=auth_headers)
+        client.post(f"/api/downloads/{a_gid}/delete", json={"delete_files": True}, headers=auth_headers)
+
+
+

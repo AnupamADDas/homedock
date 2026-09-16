@@ -65,6 +65,31 @@ def init_db():
                 expires_at REAL NOT NULL
             );
         """)
+
+        # YouTube / Media download tasks table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_tasks (
+                gid TEXT PRIMARY KEY,
+                url TEXT NOT NULL,
+                title TEXT NOT NULL,
+                channel TEXT,
+                thumbnail_url TEXT,
+                duration INTEGER,
+                mode TEXT NOT NULL,
+                format TEXT NOT NULL,
+                quality_label TEXT NOT NULL,
+                status TEXT NOT NULL,
+                status_detail TEXT,
+                percent REAL DEFAULT 0.0,
+                completed_bytes INTEGER DEFAULT 0,
+                total_bytes INTEGER DEFAULT 0,
+                destination_dir TEXT NOT NULL,
+                output_files TEXT,
+                error_message TEXT,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            );
+        """)
         
         conn.commit()
 

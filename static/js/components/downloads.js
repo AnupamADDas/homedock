@@ -36,6 +36,8 @@ export class DownloadManagerComponent {
     this.stats = null;
     this.defaultDir = "";
     this.initialized = false;
+    this.ytMediaMode = "video";
+    this.ytProbing = false;
   }
 
   async init() {
@@ -51,10 +53,14 @@ export class DownloadManagerComponent {
       const res = await api.getDefaultDownloadDir();
       this.defaultDir = res.default_dir || "";
       const destInput = document.getElementById("addDownloadDestInput");
+      const ytDestInput = document.getElementById("inputYtDest");
       const helperEl = document.getElementById("addDownloadDestHelper");
       const globalDirInput = document.getElementById("globalDefaultDlDirInput");
       if (destInput) {
         destInput.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
+      }
+      if (ytDestInput) {
+        ytDestInput.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
       }
       if (helperEl && this.defaultDir) {
         helperEl.innerHTML = `Default download folder: <code style="font-size: 0.72rem;">${this.defaultDir}</code> (leave blank to use default, or Browse to customize)`;
@@ -88,6 +94,19 @@ export class DownloadManagerComponent {
         if (destInput) destInput.value = "";
         const saveDefCheckbox = document.getElementById("addDownloadSaveDefaultCheckbox");
         if (saveDefCheckbox) saveDefCheckbox.checked = false;
+
+        // Reset YouTube form & preview
+        const ytForm = document.getElementById("youtubeDownloadForm");
+        if (ytForm) ytForm.reset();
+        const ytPreview = document.getElementById("ytPreviewCard");
+        if (ytPreview) ytPreview.style.display = "none";
+        const ytStatus = document.getElementById("ytProbeStatus");
+        if (ytStatus) ytStatus.textContent = "";
+        const ytDest = document.getElementById("inputYtDest");
+        if (ytDest) ytDest.value = "";
+        const ytSaveDef = document.getElementById("checkYtSaveDefault");
+        if (ytSaveDef) ytSaveDef.checked = false;
+
         modal.classList.add("active");
       });
     }
@@ -297,6 +316,251 @@ export class DownloadManagerComponent {
     if (refreshBtn) {
       refreshBtn.addEventListener("click", () => this.refresh());
     }
+
+    // Initialize YouTube & Media downloader controls
+    this.setupYoutubeDownloader();
+  }
+
+  setupYoutubeDownloader() {
+    // Mode tabs: Direct/Torrent vs YouTube
+    const tabDirect = document.getElementById("btnTabDirectDl");
+    const tabYt = document.getElementById("btnTabYoutubeDl");
+    const paneDirect = document.getElementById("paneDirectDl");
+    const paneYt = document.getElementById("paneYoutubeDl");
+
+    const switchTab = (mode) => {
+      if (mode === "yt") {
+        tabYt?.classList.add("active");
+        tabDirect?.classList.remove("active");
+        if (paneYt) paneYt.style.display = "block";
+        if (paneDirect) paneDirect.style.display = "none";
+        const ytDest = document.getElementById("inputYtDest");
+        if (ytDest && !ytDest.value) {
+          ytDest.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
+        }
+      } else {
+        tabDirect?.classList.add("active");
+        tabYt?.classList.remove("active");
+        if (paneDirect) paneDirect.style.display = "block";
+        if (paneYt) paneYt.style.display = "none";
+      }
+    };
+
+    tabDirect?.addEventListener("click", () => switchTab("direct"));
+    tabYt?.addEventListener("click", () => switchTab("yt"));
+
+    // Media mode buttons: Video vs Audio
+    const btnVideo = document.getElementById("btnYtModeVideo");
+    const btnAudio = document.getElementById("btnYtModeAudio");
+    const videoControls = document.getElementById("ytVideoControls");
+    const audioControls = document.getElementById("ytAudioControls");
+    const subWrap = document.getElementById("ytSubtitlesWrap");
+
+    const setMediaMode = (mode) => {
+      this.ytMediaMode = mode;
+      if (mode === "audio") {
+        btnAudio?.classList.add("active");
+        btnVideo?.classList.remove("active");
+        if (videoControls) videoControls.style.display = "none";
+        if (audioControls) audioControls.style.display = "grid";
+        if (subWrap) subWrap.style.display = "none";
+      } else {
+        btnVideo?.classList.add("active");
+        btnAudio?.classList.remove("active");
+        if (videoControls) videoControls.style.display = "grid";
+        if (audioControls) audioControls.style.display = "none";
+        if (subWrap) subWrap.style.display = "flex";
+      }
+    };
+
+    btnVideo?.addEventListener("click", () => setMediaMode("video"));
+    btnAudio?.addEventListener("click", () => setMediaMode("audio"));
+
+    // Browse Destination button for YouTube
+    const btnBrowseYt = document.getElementById("btnBrowseYtDest");
+    if (btnBrowseYt) {
+      btnBrowseYt.addEventListener("click", () => {
+        const destInput = document.getElementById("inputYtDest");
+        folderBrowser.open({
+          initialPath: destInput?.value?.trim() || this.defaultDir,
+          title: "Choose YouTube Download Destination",
+          onSelect: (path) => {
+            if (destInput) destInput.value = path;
+          }
+        });
+      });
+    }
+
+    // URL Probe Logic
+    const inputUrl = document.getElementById("inputYtUrl");
+    const btnProbe = document.getElementById("btnProbeYt");
+    const probeStatus = document.getElementById("ytProbeStatus");
+    const previewCard = document.getElementById("ytPreviewCard");
+    const previewThumb = document.getElementById("ytPreviewThumb");
+    const previewTime = document.getElementById("ytPreviewDuration");
+    const previewTitle = document.getElementById("ytPreviewTitle");
+    const previewChannel = document.getElementById("ytPreviewChannel");
+    const previewTags = document.getElementById("ytPreviewTags");
+    const playlistWrap = document.getElementById("ytPlaylistWrap");
+    const selectRes = document.getElementById("selectYtResolution");
+
+    let probeTimer = null;
+
+    const doProbe = async () => {
+      const url = inputUrl?.value?.trim();
+      if (!url || (!url.startsWith("http://") && !url.startsWith("https://"))) {
+        return;
+      }
+      if (this.ytProbing) return;
+      this.ytProbing = true;
+
+      if (probeStatus) probeStatus.textContent = "Analyzing media...";
+      if (btnProbe) {
+        btnProbe.disabled = true;
+      }
+
+      try {
+        const info = await api.probeYoutube(url);
+        if (previewCard) previewCard.style.display = "flex";
+        if (previewThumb) previewThumb.src = info.thumbnail || "";
+        if (previewTitle) previewTitle.textContent = info.title || "Untitled Media";
+        if (previewChannel) {
+          previewChannel.textContent = info.uploader || (info.is_playlist ? "YouTube Playlist" : "YouTube");
+        }
+        if (previewTime) {
+          previewTime.textContent = info.duration ? formatTime(info.duration) : (info.is_playlist ? `${info.playlist_count || 0} items` : "--");
+        }
+
+        // Tags
+        if (previewTags) {
+          const tags = [];
+          if (info.is_playlist) {
+            tags.push(`<span class="badge-tag-quality" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">Playlist (${info.playlist_count || '?'} videos)</span>`);
+          }
+          if (info.resolutions && info.resolutions.length > 0) {
+            tags.push(`<span class="badge-tag-quality">Max ${info.resolutions[0]}p</span>`);
+          }
+          previewTags.innerHTML = tags.join(" ");
+        }
+
+        // Playlist range wrap
+        if (playlistWrap) {
+          playlistWrap.style.display = info.is_playlist ? "block" : "none";
+        }
+
+        // Dynamically populate available resolutions if present
+        if (selectRes && info.resolutions && info.resolutions.length > 0) {
+          const standardRes = [
+            { val: "best", label: "Best Available (Max)" },
+            { val: "2160", label: "4K Ultra HD (2160p)" },
+            { val: "1440", label: "2K Quad HD (1440p)" },
+            { val: "1080", label: "Full HD (1080p)" },
+            { val: "720", label: "HD (720p)" },
+            { val: "480", label: "Standard (480p)" },
+            { val: "360", label: "Low (360p)" },
+          ];
+          const availableSet = new Set(info.resolutions.map(r => String(r)));
+          const currentVal = selectRes.value || "best";
+          selectRes.innerHTML = standardRes
+            .filter(r => r.val === "best" || availableSet.has(r.val))
+            .map(r => `<option value="${r.val}" ${r.val === currentVal ? "selected" : ""}>${r.label}</option>`)
+            .join("");
+          if (!selectRes.value) selectRes.value = "best";
+        }
+
+        if (probeStatus) probeStatus.textContent = "✓ Ready to download";
+      } catch (err) {
+        if (probeStatus) probeStatus.textContent = "Analysis failed";
+        console.warn("Probe YouTube failed:", err);
+      } finally {
+        this.ytProbing = false;
+        if (btnProbe) {
+          btnProbe.disabled = false;
+        }
+      }
+    };
+
+    btnProbe?.addEventListener("click", doProbe);
+
+    inputUrl?.addEventListener("input", () => {
+      clearTimeout(probeTimer);
+      const url = inputUrl.value.trim();
+      if (url && (url.includes("youtube.com") || url.includes("youtu.be"))) {
+        probeTimer = setTimeout(doProbe, 700);
+      }
+    });
+
+    inputUrl?.addEventListener("paste", () => {
+      setTimeout(doProbe, 150);
+    });
+
+    // YouTube Download Form Submit
+    const ytForm = document.getElementById("youtubeDownloadForm");
+    if (ytForm) {
+      ytForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const url = inputUrl?.value?.trim();
+        if (!url) {
+          showToast("Please enter a YouTube video or playlist URL", "error");
+          return;
+        }
+
+        const mediaType = this.ytMediaMode || "video";
+        const isAudio = mediaType === "audio";
+
+        const resSelect = document.getElementById("selectYtResolution");
+        const vfmtSelect = document.getElementById("selectYtVideoFormat");
+        const afmtSelect = document.getElementById("selectYtAudioFormat");
+        const aqualSelect = document.getElementById("selectYtAudioQuality");
+
+        const embedThumb = document.getElementById("checkYtEmbedThumb")?.checked ?? true;
+        const embedMeta = document.getElementById("checkYtEmbedMeta")?.checked ?? true;
+        const embedSubs = (!isAudio) && (document.getElementById("checkYtEmbedSubs")?.checked ?? false);
+        const playlistItems = document.getElementById("inputYtPlaylistItems")?.value?.trim() || null;
+        const destDir = document.getElementById("inputYtDest")?.value?.trim() || null;
+        const saveDefault = document.getElementById("checkYtSaveDefault")?.checked || false;
+
+        const payload = {
+          url: url,
+          media_type: mediaType,
+          resolution: isAudio ? null : (resSelect?.value || "best"),
+          video_format: isAudio ? null : (vfmtSelect?.value || "mp4"),
+          audio_format: isAudio ? (afmtSelect?.value || "mp3") : null,
+          audio_quality: isAudio ? (aqualSelect?.value || "best") : null,
+          embed_thumbnail: embedThumb,
+          embed_metadata: embedMeta,
+          embed_subtitles: embedSubs,
+          playlist_items: playlistItems,
+          destination_dir: destDir,
+          save_as_default: saveDefault
+        };
+
+        const submitBtn = document.getElementById("btnStartYtDownload");
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+          const res = await api.addYoutubeDownload(payload);
+          showToast(`YouTube download queued: ${res.title || 'Media'}`, "success");
+
+          if (saveDefault && destDir) {
+            this.defaultDir = destDir;
+            window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: destDir } }));
+          }
+
+          document.getElementById("addDownloadModal")?.classList.remove("active");
+          ytForm.reset();
+          if (previewCard) previewCard.style.display = "none";
+          if (probeStatus) probeStatus.textContent = "";
+          if (playlistWrap) playlistWrap.style.display = "none";
+          await this.fetchDefaultDir();
+          await this.refresh();
+        } catch (err) {
+          showToast(err.message || "Failed to start YouTube download", "error");
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
   }
 
   async refresh() {
@@ -442,13 +706,48 @@ export class DownloadManagerComponent {
           </span>`
         : "";
 
+      const isYt = Boolean(item.is_youtube);
+
       let fillClass = "";
-      if (isActive) fillClass = "active";
+      if (isActive) fillClass = isYt ? "active youtube" : "active";
       else if (isPaused) fillClass = "paused";
       else if (isComplete) fillClass = "complete";
       else if (isError) fillClass = "error";
 
-      const iconSvg = getFileIcon(item.name, item.is_bittorrent);
+      let iconOrThumbHtml = "";
+      if (isYt && item.thumbnail_url) {
+        iconOrThumbHtml = `
+          <div class="download-item-thumb-box">
+            <img src="${item.thumbnail_url}" alt="thumbnail" loading="lazy" onerror="this.style.display='none'">
+          </div>
+        `;
+      } else if (isYt) {
+        iconOrThumbHtml = `
+          <div class="download-item-icon-box" style="background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.3);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          </div>
+        `;
+      } else {
+        iconOrThumbHtml = `
+          <div class="download-item-icon-box">
+            ${getFileIcon(item.name, item.is_bittorrent)}
+          </div>
+        `;
+      }
+
+      let ytBadges = "";
+      if (isYt) {
+        const qText = item.media_type === "audio"
+          ? `${(item.format_id || 'MP3').toUpperCase()} • ${item.quality || '320k'}`
+          : `${item.quality ? (item.quality + 'p') : 'Auto'} ${(item.format_id || 'MP4').toUpperCase()}`;
+        ytBadges = `
+          <span class="badge-tag-yt">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <span>YouTube</span>
+          </span>
+          <span class="badge-tag-quality">${qText}</span>
+        `;
+      }
 
       let speedOrStatusHtml = "";
       if (isActive) {
@@ -467,17 +766,63 @@ export class DownloadManagerComponent {
         speedOrStatusHtml = `<span style="color: #f43f5e; font-weight: 600;">Failed</span>`;
       }
 
+      let actionsHtml = "";
+      if (isYt) {
+        if (isActive || isWaiting) {
+          actionsHtml = `
+            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          `;
+        } else {
+          actionsHtml = `
+            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Delete Task">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          `;
+        }
+      } else {
+        actionsHtml = `
+          ${isActive ? `
+            <button class="btn btn-secondary btn-icon btn-sm btn-pause-dl" data-gid="${item.gid}" title="Pause">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            </button>
+          ` : ""}
+          ${isPaused ? `
+            <button class="btn btn-secondary btn-icon btn-sm btn-unpause-dl" data-gid="${item.gid}" title="Resume">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#10b981" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            </button>
+          ` : ""}
+          ${isError ? `
+            <button class="btn btn-secondary btn-icon btn-sm btn-retry-dl" data-gid="${item.gid}" title="Retry">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+          ` : ""}
+          <button class="btn btn-secondary btn-icon btn-sm btn-limit-dl ${taskLimit > 0 ? 'active' : ''}" data-gid="${item.gid}" data-limit="${taskLimit}" title="${limitFormatted ? `Speed Limit: ${limitFormatted} (Click to change)` : 'Set Speed Limit for this task'}">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="#f59e0b" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </button>
+          ${(isActive || isPaused || isWaiting) ? `
+            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          ` : `
+            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Delete Task">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          `}
+        `;
+      }
+
       return `
         <div class="download-item" data-gid="${item.gid}">
           <div class="download-item-header">
             <!-- Icon and Main Titles (PulseDL Style) -->
             <div class="download-item-main">
-              <div class="download-item-icon-box">
-                ${iconSvg}
-              </div>
+              ${iconOrThumbHtml}
               <div class="download-item-titles">
                 <div class="download-item-title-row">
                   <h4 class="download-item-title" title="${item.name}">${item.name}</h4>
+                  ${ytBadges}
                   ${statusBadge}
                   ${limitBadge}
                 </div>
@@ -485,6 +830,7 @@ export class DownloadManagerComponent {
                   <span class="download-item-path btn-copy-path" data-path="${item.dir || ''}" title="Click to copy path: ${item.dir || ''}">
                     📁 ${item.dir || '--'}
                   </span>
+                  ${item.channel ? `<span style="color: var(--text-secondary); font-weight: 500;">• 👤 ${item.channel}</span>` : ''}
                   ${item.connections > 0 ? `<span>• 🔗 ${item.connections} conns</span>` : (isPaused ? '<span style="color: #fbbf24;">• ⏸ Paused</span>' : '')}
                   ${item.num_seeders > 0 ? `<span>• ⬆ ${item.num_seeders} seeds</span>` : ''}
                   ${limitFormatted ? `<span style="color: #fbbf24; font-weight: 500;">• ⚡ Max ${limitFormatted}</span>` : ''}
@@ -494,34 +840,7 @@ export class DownloadManagerComponent {
 
             <!-- Action Controls (PulseDL Style) -->
             <div class="download-item-actions">
-              ${isActive ? `
-                <button class="btn btn-secondary btn-icon btn-sm btn-pause-dl" data-gid="${item.gid}" title="Pause">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                </button>
-              ` : ""}
-              ${isPaused ? `
-                <button class="btn btn-secondary btn-icon btn-sm btn-unpause-dl" data-gid="${item.gid}" title="Resume">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="#10b981" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                </button>
-              ` : ""}
-              ${isError ? `
-                <button class="btn btn-secondary btn-icon btn-sm btn-retry-dl" data-gid="${item.gid}" title="Retry">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                </button>
-              ` : ""}
-              <!-- Speed Limit button with lightning bolt icon, active highlight -->
-              <button class="btn btn-secondary btn-icon btn-sm btn-limit-dl ${taskLimit > 0 ? 'active' : ''}" data-gid="${item.gid}" data-limit="${taskLimit}" title="${limitFormatted ? `Speed Limit: ${limitFormatted} (Click to change)` : 'Set Speed Limit for this task'}">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="#f59e0b" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-              </button>
-              ${(isActive || isPaused || isWaiting) ? `
-                <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              ` : `
-                <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Delete Task">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              `}
+              ${actionsHtml}
             </div>
           </div>
 
