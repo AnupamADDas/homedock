@@ -661,48 +661,215 @@
       </div>
     </div>
 
-    <!-- MODAL 1: Add Download -->
+    <!-- MODAL 1: Add Download (Dual Mode: Direct/Torrent & YouTube/Media) -->
     <div id="addDownloadModal" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <div class="modal-title">New Download Task</div>
+      <div class="modal" style="max-width: 560px;">
+        <div class="modal-header" style="padding-bottom: 0.75rem;">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>New Download Task</span>
+          </div>
           <button id="closeAddDownloadModalBtn" class="modal-close">&times;</button>
         </div>
-        <form id="addDownloadForm">
-          <div class="modal-body">
-            <div class="form-group">
-              <label class="form-label">Download URLs / Magnet Links (one per line)</label>
-              <textarea id="addDownloadUrls" class="form-control" rows="3" placeholder="https://example.com/file.iso&#10;magnet:?xt=urn:btih:..."></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Or Select .torrent File</label>
-              <input type="file" id="addTorrentFileInput" class="form-control" accept=".torrent">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Destination Directory (Optional)</label>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="addDownloadDestInput" class="form-control" placeholder="/DATA/HDD/Downloads">
-                <button type="button" id="btnBrowseDownloadDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                  <span>Browse</span>
-                </button>
+
+        <!-- Download Mode Tabs -->
+        <div class="dl-modal-tab-bar">
+          <button type="button" class="dl-modal-tab-btn active" id="btnTabDirectDl">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Direct / Torrent</span>
+          </button>
+          <button type="button" class="dl-modal-tab-btn" id="btnTabYoutubeDl">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="#ef4444"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            <span>YouTube & Media</span>
+          </button>
+        </div>
+
+        <!-- PANE 1: Standard Direct / Torrent Download -->
+        <div id="paneDirectDl">
+          <form id="addDownloadForm">
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-label">Download URLs / Magnet Links (one per line)</label>
+                <textarea id="addDownloadUrls" class="form-control font-mono" rows="3" placeholder="https://example.com/file.iso&#10;magnet:?xt=urn:btih:..."></textarea>
               </div>
-              <small id="addDownloadDestHelper" style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to use default download folder.</small>
-              <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
-                <input type="checkbox" id="addDownloadSaveDefaultCheckbox" style="cursor: pointer;">
-                <label for="addDownloadSaveDefaultCheckbox" style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Save this folder as the default download location</label>
+              <div class="form-group">
+                <label class="form-label">Or Select .torrent File</label>
+                <input type="file" id="addTorrentFileInput" class="form-control" accept=".torrent">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Destination Directory (Optional)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="addDownloadDestInput" class="form-control font-mono" placeholder="/DATA/HDD/Downloads">
+                  <button type="button" id="btnBrowseDownloadDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span>Browse</span>
+                  </button>
+                </div>
+                <small id="addDownloadDestHelper" style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to use default download folder.</small>
+                <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                  <input type="checkbox" id="addDownloadSaveDefaultCheckbox" style="cursor: pointer;">
+                  <label for="addDownloadSaveDefaultCheckbox" style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Save this folder as the default download location</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Speed Limit (KB/s, 0 = unlimited)</label>
+                <input type="number" id="addDownloadLimitInput" class="form-control font-mono" min="0" value="0">
               </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Speed Limit (KB/s, 0 = unlimited)</label>
-              <input type="number" id="addDownloadLimitInput" class="form-control" min="0" value="0">
+            <div class="modal-footer">
+              <button type="button" onclick="document.getElementById('addDownloadModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+              <button type="submit" class="btn btn-primary btn-sm">Start Download</button>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" onclick="document.getElementById('addDownloadModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-sm">Start Download</button>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        <!-- PANE 2: YouTube / Media Downloader (Stacher7 Grade) -->
+        <div id="paneYoutubeDl" style="display: none;">
+          <form id="youtubeDownloadForm">
+            <div class="modal-body" style="display: flex; flex-direction: column; gap: 0.95rem;">
+              <!-- URL Input & Probe Button -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="display: flex; justify-content: space-between;">
+                  <span>Video or Playlist URL</span>
+                  <span id="ytProbeStatus" style="font-size: 0.74rem; color: var(--accent-primary); font-weight: normal;"></span>
+                </label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="url" id="inputYtUrl" class="form-control font-mono" placeholder="https://www.youtube.com/watch?v=... or playlist URL" required>
+                  <button type="button" id="btnProbeYt" class="btn btn-secondary btn-sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.35rem;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Analyze</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Video Preview Card (Shows once probed) -->
+              <div id="ytPreviewCard" class="yt-preview-card" style="display: none;">
+                <div class="yt-preview-thumb-box">
+                  <img id="ytPreviewThumb" src="" alt="Thumbnail" class="yt-preview-img">
+                  <span id="ytPreviewDuration" class="yt-preview-time">0:00</span>
+                </div>
+                <div class="yt-preview-details">
+                  <div id="ytPreviewTitle" class="yt-preview-title">Video Title</div>
+                  <div id="ytPreviewChannel" class="yt-preview-sub">Uploader</div>
+                  <div class="yt-preview-tags" id="ytPreviewTags"></div>
+                </div>
+              </div>
+
+              <!-- Media Mode Selector (Video vs Audio) -->
+              <div>
+                <label class="form-label" style="margin-bottom: 0.35rem;">Format Mode</label>
+                <div class="yt-type-toggle-grid">
+                  <button type="button" class="yt-type-btn active" id="btnYtModeVideo">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                    <span>Video (with Audio)</span>
+                  </button>
+                  <button type="button" class="yt-type-btn" id="btnYtModeAudio">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    <span>Audio Only</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Video Format Controls -->
+              <div id="ytVideoControls" class="form-row-2">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Video Resolution</label>
+                  <select id="selectYtResolution" class="form-control">
+                    <option value="best" selected>Best Available (Max)</option>
+                    <option value="2160">4K Ultra HD (2160p)</option>
+                    <option value="1440">2K Quad HD (1440p)</option>
+                    <option value="1080">Full HD (1080p)</option>
+                    <option value="720">HD (720p)</option>
+                    <option value="480">Standard (480p)</option>
+                    <option value="360">Low (360p)</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Video File Format</label>
+                  <select id="selectYtVideoFormat" class="form-control">
+                    <option value="mp4" selected>MP4 (Universal)</option>
+                    <option value="mkv">MKV (Matroska)</option>
+                    <option value="webm">WebM</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Audio Format Controls (Shown when Audio Only is selected) -->
+              <div id="ytAudioControls" class="form-row-2" style="display: none;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Audio File Format</label>
+                  <select id="selectYtAudioFormat" class="form-control">
+                    <option value="mp3" selected>MP3 (Universal)</option>
+                    <option value="m4a">M4A (AAC / High Quality)</option>
+                    <option value="flac">FLAC (Lossless)</option>
+                    <option value="opus">OPUS (Efficient)</option>
+                    <option value="wav">WAV (Uncompressed)</option>
+                    <option value="aac">AAC</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label">Audio Quality / Bitrate</label>
+                  <select id="selectYtAudioQuality" class="form-control">
+                    <option value="best" selected>Best Quality (320 kbps VBR)</option>
+                    <option value="320">320 kbps (CBR / Studio)</option>
+                    <option value="256">256 kbps</option>
+                    <option value="192">192 kbps (Standard)</option>
+                    <option value="128">128 kbps (Compact)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Stacher7 Options Grid -->
+              <div>
+                <label class="form-label" style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 0.35rem;">Stacher Options & Metadata</label>
+                <div class="yt-options-grid">
+                  <label class="yt-checkbox-item">
+                    <input type="checkbox" id="checkYtEmbedThumb" checked>
+                    <span>Embed Thumbnail / Artwork</span>
+                  </label>
+                  <label class="yt-checkbox-item">
+                    <input type="checkbox" id="checkYtEmbedMeta" checked>
+                    <span>Embed Metadata & Chapters</span>
+                  </label>
+                  <label class="yt-checkbox-item" id="ytSubtitlesWrap">
+                    <input type="checkbox" id="checkYtEmbedSubs">
+                    <span>Embed Subtitles</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Playlist Items Range (if playlist) -->
+              <div id="ytPlaylistWrap" style="display: none; background: var(--bg-tertiary); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.3rem;">Playlist Range (Optional)</label>
+                <input type="text" id="inputYtPlaylistItems" class="form-control font-mono" placeholder="e.g. 1-10 or 1,3,5 (leave empty for entire playlist)">
+              </div>
+
+              <!-- Destination Directory -->
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Destination Directory</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="inputYtDest" class="form-control font-mono" placeholder="/DATA/HDD/Downloads">
+                  <button type="button" id="btnBrowseYtDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span>Browse</span>
+                  </button>
+                </div>
+                <div style="margin-top: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+                  <input type="checkbox" id="checkYtSaveDefault" style="cursor: pointer;">
+                  <label for="checkYtSaveDefault" style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none; margin: 0;">Save as default download location</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" onclick="document.getElementById('addDownloadModal').classList.remove('active')" class="btn btn-secondary btn-sm">Cancel</button>
+              <button type="submit" id="btnStartYtDownload" class="btn btn-danger btn-sm" style="background: #ef4444; border-color: #ef4444; color: #fff; display: flex; align-items: center; gap: 0.4rem;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M10 15l5-3-5-3v6z"/></svg>
+                <span>Download Media</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
 

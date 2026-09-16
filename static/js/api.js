@@ -299,6 +299,20 @@ class ApiService {
     });
   }
 
+  async probeYoutube(url) {
+    return await this.request("/api/downloads/youtube/probe", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    });
+  }
+
+  async addYoutubeDownload(payload) {
+    return await this.request("/api/downloads/youtube/add", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  }
+
   async pauseDownload(gid) {
     return await this.request(`/api/downloads/${gid}/pause`, { method: "POST" });
   }

@@ -285,12 +285,22 @@ class DownloadManagerService:
         return await self._rpc_call("aria2.addTorrent", [b64_content, [], options])
 
     async def pause(self, gid: str) -> str:
+        if gid.startswith("yt-"):
+            from app.services.youtube_downloader import youtube_downloader
+            youtube_downloader.cancel_task(gid)
+            return "OK"
         return await self._rpc_call("aria2.pause", [gid])
 
     async def unpause(self, gid: str) -> str:
+        if gid.startswith("yt-"):
+            return "OK"
         return await self._rpc_call("aria2.unpause", [gid])
 
     async def remove(self, gid: str) -> str:
+        if gid.startswith("yt-"):
+            from app.services.youtube_downloader import youtube_downloader
+            youtube_downloader.cancel_task(gid)
+            return "OK"
         try:
             return await self._rpc_call("aria2.remove", [gid])
         except Exception:
@@ -318,6 +328,10 @@ class DownloadManagerService:
 
     async def delete_download(self, gid: str, delete_files: bool = False, allowed_roots: Optional[List[str]] = None) -> bool:
         """Removes download and optionally deletes files from disk within allowed roots."""
+        if gid.startswith("yt-"):
+            from app.services.youtube_downloader import youtube_downloader
+            return youtube_downloader.delete_task(gid, delete_files=delete_files, allowed_roots=allowed_roots)
+
         status = None
         try:
             status = await self.tell_status(gid)
@@ -376,10 +390,20 @@ class DownloadManagerService:
             global_opts = await self._rpc_call("aria2.getGlobalOption")
         except Exception:
             pass
+
+        yt_speed = 0
+        yt_active = 0
+        try:
+            from app.services.youtube_downloader import youtube_downloader
+            yt_speed = youtube_downloader.get_total_download_speed()
+            yt_active = youtube_downloader.get_active_count()
+        except Exception:
+            pass
+
         return {
-            "download_speed": int(res.get("downloadSpeed", 0)),
+            "download_speed": int(res.get("downloadSpeed", 0)) + yt_speed,
             "upload_speed": int(res.get("uploadSpeed", 0)),
-            "num_active": int(res.get("numActive", 0)),
+            "num_active": int(res.get("numActive", 0)) + yt_active,
             "num_waiting": int(res.get("numWaiting", 0)),
             "num_stopped": int(res.get("numStopped", 0)),
             "max_download_limit": int(global_opts.get("max-overall-download-limit", 0)),
@@ -463,8 +487,15 @@ class DownloadManagerService:
                 "error_code": item.get("errorCode"),
                 "error_message": item.get("errorMessage"),
                 "is_bittorrent": bool(bt),
+                "is_youtube": False,
             })
 
-        return results
+        # Prepend YouTube downloads
+        try:
+            from app.services.youtube_downloader import youtube_downloader
+            yt_tasks = youtube_downloader.get_tasks()
+            return yt_tasks + results
+        except Exception:
+            return results
 
 download_manager = DownloadManagerService()

@@ -36,6 +36,28 @@ class GlobalLimitsRequest(BaseModel):
     download_limit: int = Field(ge=0)
     upload_limit: int = Field(ge=0)
 
+class YoutubeProbeRequest(BaseModel):
+    url: str
+
+class YoutubeAddRequest(BaseModel):
+    url: str
+    destination: Optional[str] = None
+    destination_dir: Optional[str] = None
+    mode: Optional[str] = "video"
+    media_type: Optional[str] = None
+    resolution: Optional[str] = "best"
+    video_format: Optional[str] = "mp4"
+    audio_format: Optional[str] = "mp3"
+    audio_quality: Optional[str] = "best"
+    embed_subtitles: Optional[bool] = False
+    embed_thumbnail: Optional[bool] = True
+    embed_metadata: Optional[bool] = True
+    playlist_items: Optional[str] = None
+    save_as_default: Optional[bool] = False
+    title_hint: Optional[str] = None
+    thumbnail_hint: Optional[str] = None
+    channel_hint: Optional[str] = None
+
 @router.get("/list")
 async def list_downloads(current_user: Dict[str, Any] = Depends(get_current_user)):
     try:
@@ -274,3 +296,79 @@ async def set_global_speed_limits(
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.post("/youtube/probe")
+async def probe_youtube_url(
+    req: YoutubeProbeRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Fetches video/playlist metadata, available resolutions, and stream details."""
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL cannot be empty")
+    try:
+        from app.services.youtube_downloader import youtube_downloader
+        data = await youtube_downloader.probe_url(url)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.post("/youtube/add")
+async def add_youtube_download(
+    req: YoutubeAddRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Queues a YouTube/streaming media download task with Stacher-grade format/quality options."""
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL cannot be empty")
+
+    from app.config import get_default_download_dir
+    allowed_roots = get_user_allowed_roots(current_user)
+
+    target_dir = req.destination or req.destination_dir
+    if not target_dir or not target_dir.strip():
+        target_dir = get_setting("default_download_dir", get_default_download_dir())
+
+    target_dir = target_dir.strip()
+
+    try:
+        resolved_dest = file_service.validate_path(target_dir, allowed_roots, check_exists=False)
+        resolved_dest.mkdir(parents=True, exist_ok=True)
+    except PermissionError as e:
+        default_configured = get_setting("default_download_dir", get_default_download_dir())
+        if Path(target_dir).resolve() == Path(default_configured).resolve():
+            resolved_dest = Path(target_dir).resolve()
+            resolved_dest.mkdir(parents=True, exist_ok=True)
+        else:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Destination directory is outside permitted storage: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Destination directory is outside permitted storage: {e}")
+
+    if req.save_as_default:
+        set_setting("default_download_dir", str(resolved_dest))
+        try:
+            await download_manager.set_global_dir(str(resolved_dest))
+        except Exception:
+            pass
+
+    media_mode = req.media_type or req.mode or "video"
+    from app.services.youtube_downloader import youtube_downloader
+    gid = youtube_downloader.start_download(
+        url=url,
+        destination_dir=str(resolved_dest),
+        mode=media_mode,
+        resolution=req.resolution,
+        video_format=req.video_format,
+        audio_format=req.audio_format,
+        audio_quality=req.audio_quality,
+        embed_subtitles=bool(req.embed_subtitles),
+        embed_thumbnail=bool(req.embed_thumbnail),
+        embed_metadata=bool(req.embed_metadata),
+        playlist_items=req.playlist_items,
+        title_hint=req.title_hint,
+        thumbnail_hint=req.thumbnail_hint,
+        channel_hint=req.channel_hint,
+    )
+
+    return {"success": True, "gid": gid}
