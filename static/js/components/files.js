@@ -244,6 +244,19 @@ export class FileManagerComponent {
       }
     });
 
+    // Listen for storage roots changes to refresh storage chips and view
+    window.addEventListener("homedock:roots_changed", async () => {
+      if (this.currentPath) {
+        try {
+          await this.refresh();
+          return;
+        } catch {
+          // If current path became inaccessible, fall back to default
+        }
+      }
+      await this.navigate(null, false);
+    });
+
     // Task Cancel button
     const taskCancelBtn = document.getElementById("fmTaskCancelBtn");
     if (taskCancelBtn) {

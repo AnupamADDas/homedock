@@ -41,6 +41,22 @@ export class FolderBrowser {
       });
     }
 
+    const pathInput = document.getElementById("fbPathInput");
+    const pathGoBtn = document.getElementById("fbPathGoBtn");
+    if (pathInput && pathGoBtn) {
+      const handleJump = () => {
+        const val = pathInput.value.trim();
+        if (val) this.loadDirectory(val);
+      };
+      pathGoBtn.addEventListener("click", handleJump);
+      pathInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleJump();
+        }
+      });
+    }
+
     if (createFolderBtn && newFolderInput) {
       const handleCreate = async () => {
         const name = newFolderInput.value.trim();
@@ -107,6 +123,11 @@ export class FolderBrowser {
       if (pathDisplayEl) {
         pathDisplayEl.textContent = data.current_path;
         pathDisplayEl.title = data.current_path;
+      }
+
+      const pathInput = document.getElementById("fbPathInput");
+      if (pathInput) {
+        pathInput.value = data.current_path;
       }
 
       // Render Quick Locations

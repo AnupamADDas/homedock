@@ -45,22 +45,55 @@ export class SettingsComponent {
       });
     }
 
-    // Add Allowed Storage Root Button
+    // Add Allowed Storage Root Button (Browse)
     const addRootBtn = document.getElementById("btnAddAllowedRoot");
     if (addRootBtn) {
       addRootBtn.addEventListener("click", () => {
         folderBrowser.open({
           title: "Select Storage Location to Allow",
-          onSelect: (selectedPath) => {
-            if (!this.allowedRoots.includes(selectedPath)) {
-              this.allowedRoots.push(selectedPath);
+          onSelect: async (selectedPath) => {
+            try {
+              const res = await api.addAllowedRoot(selectedPath);
+              this.allowedRoots = res.global_allowed_roots || [];
               this.renderAllowedRootsList();
-              showToast(`Added "${selectedPath}" to allowed storage roots`, "success");
-            } else {
-              showToast(`"${selectedPath}" is already in allowed roots`, "info");
+              window.dispatchEvent(new CustomEvent("homedock:roots_changed", { detail: { roots: this.allowedRoots } }));
+              showToast(`Added and saved "${selectedPath}" to allowed storage roots`, "success");
+            } catch (err) {
+              showToast(err.message || "Failed to add storage root", "error");
             }
           }
         });
+      });
+    }
+
+    // Add Allowed Storage Root (Manual Path Input)
+    const manualInput = document.getElementById("inputManualAllowedRoot");
+    const addManualBtn = document.getElementById("btnAddManualRoot");
+    if (manualInput && addManualBtn) {
+      const handleAddManual = async () => {
+        const val = manualInput.value.trim();
+        if (!val) {
+          showToast("Please enter a valid directory path", "warning");
+          return;
+        }
+        try {
+          const res = await api.addAllowedRoot(val);
+          this.allowedRoots = res.global_allowed_roots || [];
+          manualInput.value = "";
+          this.renderAllowedRootsList();
+          window.dispatchEvent(new CustomEvent("homedock:roots_changed", { detail: { roots: this.allowedRoots } }));
+          showToast(`Added and saved "${res.added || val}" to allowed storage roots`, "success");
+        } catch (err) {
+          showToast(err.message || "Failed to add storage root", "error");
+        }
+      };
+
+      addManualBtn.addEventListener("click", handleAddManual);
+      manualInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleAddManual();
+        }
       });
     }
 
@@ -70,25 +103,30 @@ export class SettingsComponent {
       appSettingsForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const dlDir = document.getElementById("settingDefaultDlDir").value.trim();
-        const roots = this.allowedRoots.length > 0
-          ? [...this.allowedRoots]
-          : document.getElementById("settingAllowedRoots").value.split("\n").map(r => r.trim()).filter(Boolean);
+        const roots = [...this.allowedRoots];
 
         if (dlDir && !roots.includes(dlDir)) {
           roots.push(dlDir);
           this.allowedRoots = roots;
         }
 
+        const payload = {
+          global_allowed_roots: roots,
+        };
+        if (dlDir) {
+          payload.default_download_dir = dlDir;
+        }
+
         try {
-          await api.updateSettings({
-            default_download_dir: dlDir,
-            global_allowed_roots: roots,
-          });
-          window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: dlDir } }));
-          showToast("Settings updated successfully", "success");
+          await api.updateSettings(payload);
+          if (dlDir) {
+            window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: dlDir } }));
+          }
+          window.dispatchEvent(new CustomEvent("homedock:roots_changed", { detail: { roots } }));
+          showToast("Configuration saved successfully", "success");
           await this.refresh();
         } catch (err) {
-          showToast(err.message, "error");
+          showToast(err.message || "Failed to save configuration", "error");
         }
       });
     }
@@ -315,11 +353,17 @@ export class SettingsComponent {
     `).join("");
 
     container.querySelectorAll(".btn-remove-root").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const pathToRemove = btn.dataset.path;
-        this.allowedRoots = this.allowedRoots.filter(r => r !== pathToRemove);
-        this.renderAllowedRootsList();
-        showToast(`Removed "${pathToRemove}" from allowed roots (click Save to apply)`, "info");
+        try {
+          const res = await api.removeAllowedRoot(pathToRemove);
+          this.allowedRoots = res.global_allowed_roots || [];
+          this.renderAllowedRootsList();
+          window.dispatchEvent(new CustomEvent("homedock:roots_changed", { detail: { roots: this.allowedRoots } }));
+          showToast(`Removed "${pathToRemove}" from allowed roots`, "info");
+        } catch (err) {
+          showToast(err.message || "Failed to remove storage root", "error");
+        }
       });
     });
   }

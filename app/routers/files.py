@@ -160,6 +160,10 @@ async def browse_folders(
     quick_locations = []
     seen_paths = set()
     
+    if is_admin and "/" not in seen_paths:
+        quick_locations.append({"name": "Root System (/)", "path": "/", "icon": "server"})
+        seen_paths.add("/")
+
     for r in allowed_roots:
         if os.path.exists(r) and r not in seen_paths:
             name = Path(r).name or r

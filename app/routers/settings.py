@@ -7,7 +7,7 @@ default download paths, and application options.
 import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from app.deps import require_admin, get_current_user
 from app.database import get_all_settings, set_setting, get_setting
@@ -33,27 +33,87 @@ async def get_settings(current_user: Dict[str, Any] = Depends(get_current_user))
         }
     return settings
 
+class AllowedRootRequest(BaseModel):
+    path: str
+
+@router.post("/allowed-roots")
+async def add_allowed_root(req: AllowedRootRequest, admin_user: Dict[str, Any] = Depends(require_admin)):
+    r = req.path.strip()
+    if not r:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Path cannot be empty")
+    p = Path(r).resolve()
+    if not p.exists():
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Directory does not exist and could not be created on server: {e}"
+            )
+    if not p.is_dir():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Path is not a directory: {r}")
+
+    p_str = str(p)
+    raw = get_setting("global_allowed_roots", "[]")
+    try:
+        roots = json.loads(raw)
+        if not isinstance(roots, list):
+            roots = []
+    except Exception:
+        roots = []
+
+    if p_str not in roots:
+        roots.append(p_str)
+        set_setting("global_allowed_roots", json.dumps(roots))
+
+    return {"success": True, "global_allowed_roots": roots, "added": p_str}
+
+@router.delete("/allowed-roots")
+async def remove_allowed_root(
+    path: str = Query(...),
+    admin_user: Dict[str, Any] = Depends(require_admin)
+):
+    p_str = str(Path(path.strip()).resolve())
+    raw = get_setting("global_allowed_roots", "[]")
+    try:
+        roots = json.loads(raw)
+        if not isinstance(roots, list):
+            roots = []
+    except Exception:
+        roots = []
+
+    roots = [r for r in roots if str(Path(r).resolve()) != p_str]
+    set_setting("global_allowed_roots", json.dumps(roots))
+    return {"success": True, "global_allowed_roots": roots, "removed": p_str}
+
 @router.put("")
 async def update_settings(req: UpdateSettingsRequest, admin_user: Dict[str, Any] = Depends(require_admin)):
     if req.global_allowed_roots is not None:
         validated_roots = []
         for r in req.global_allowed_roots:
-            p = Path(r).resolve()
+            if not r or not r.strip():
+                continue
+            p = Path(r.strip()).resolve()
             if not p.exists():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Directory does not exist on server: {r}"
-                )
+                try:
+                    p.mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Directory does not exist and could not be created on server: {r} ({e})"
+                    )
             if not p.is_dir():
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Path is not a directory: {r}"
                 )
-            validated_roots.append(str(p))
+            p_str = str(p)
+            if p_str not in validated_roots:
+                validated_roots.append(p_str)
         set_setting("global_allowed_roots", json.dumps(validated_roots))
 
-    if req.default_download_dir is not None:
-        p = Path(req.default_download_dir).resolve()
+    if req.default_download_dir is not None and req.default_download_dir.strip():
+        p = Path(req.default_download_dir.strip()).resolve()
         try:
             p.mkdir(parents=True, exist_ok=True)
         except Exception as e:

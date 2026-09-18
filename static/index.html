@@ -537,16 +537,21 @@
                 </div>
                 <form id="appSettingsForm">
                   <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                      <label class="form-label" style="margin-bottom: 0;">Global Allowed Storage Roots</label>
-                      <button type="button" id="btnAddAllowedRoot" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; font-size: 0.78rem;">
+                    <label class="form-label" style="margin-bottom: 0.35rem;">Global Allowed Storage Roots</label>
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
+                      <input type="text" id="inputManualAllowedRoot" class="form-control font-mono" placeholder="Enter server directory path (e.g. /media/storage, /home/user/storage)...">
+                      <button type="button" id="btnAddManualRoot" class="btn btn-primary btn-sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.3rem;">
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        <span>+ Add Folder</span>
+                        <span>Add Path</span>
+                      </button>
+                      <button type="button" id="btnAddAllowedRoot" class="btn btn-secondary btn-sm" style="white-space: nowrap; display: flex; align-items: center; gap: 0.35rem;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span>Browse...</span>
                       </button>
                     </div>
                     <div id="allowedRootsList" class="allowed-roots-container"></div>
                     <textarea id="settingAllowedRoots" class="form-control" rows="2" style="display: none;"></textarea>
-                    <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.35rem;">Click <strong>+ Add Folder</strong> to visually browse server drives and select allowed storage paths.</small>
+                    <small style="color: var(--text-muted); font-size: 0.78rem; display: block; margin-top: 0.35rem;">Directories listed above can be browsed, managed, and used as download destinations. Adding or removing a folder saves automatically in real time.</small>
                   </div>
                   <div class="form-group">
                     <label class="form-label">Default Download Directory</label>
@@ -1150,6 +1155,12 @@
 
           <!-- Breadcrumbs -->
           <div id="fbBreadcrumbs" class="fb-breadcrumbs"></div>
+
+          <!-- Jump to Path Bar -->
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
+            <input type="text" id="fbPathInput" class="form-control font-mono" placeholder="Enter path to jump (e.g. /, /media, /mnt)..." style="font-size: 0.82rem; padding: 0.35rem 0.6rem;">
+            <button type="button" id="fbPathGoBtn" class="btn btn-secondary btn-sm" style="white-space: nowrap; font-size: 0.78rem;">Go</button>
+          </div>
 
           <!-- Directory List -->
           <div id="fbDirList" class="fb-dir-list"></div>

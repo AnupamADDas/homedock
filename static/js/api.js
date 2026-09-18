@@ -362,6 +362,19 @@ class ApiService {
     });
   }
 
+  async addAllowedRoot(path) {
+    return await this.request("/api/settings/allowed-roots", {
+      method: "POST",
+      body: JSON.stringify({ path }),
+    });
+  }
+
+  async removeAllowedRoot(path) {
+    return await this.request(`/api/settings/allowed-roots?path=${encodeURIComponent(path)}`, {
+      method: "DELETE",
+    });
+  }
+
   async listUsers() {
     return await this.request("/api/users");
   }
