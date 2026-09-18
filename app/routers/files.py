@@ -72,6 +72,8 @@ async def list_files(
             mounts = storage_manager.get_mounted_locations()
             for m in mounts:
                 mp = str(Path(m["mountpoint"]).resolve())
+                if mp.startswith("/snap") or mp.startswith("/var/lib/snapd") or mp.startswith("/boot"):
+                    continue
                 if mp not in seen and os.path.exists(mp) and os.access(mp, os.R_OK):
                     if any(mp == str(Path(ar).resolve()) or Path(mp).is_relative_to(Path(ar).resolve()) for ar in allowed_roots):
                         storage_chips.append({
@@ -173,7 +175,9 @@ async def browse_folders(
     try:
         mounts = storage_manager.get_mounted_locations()
         for m in mounts:
-            mp = m["mountpoint"]
+            mp = str(Path(m["mountpoint"]).resolve())
+            if mp.startswith("/snap") or mp.startswith("/var/lib/snapd") or mp.startswith("/boot"):
+                continue
             if mp not in seen_paths and os.path.exists(mp) and os.access(mp, os.R_OK):
                 if is_admin or any(mp == ar or mp.startswith(ar.rstrip("/") + "/") for ar in allowed_roots):
                     name = f"Drive: {m.get('label') or Path(mp).name or mp}"

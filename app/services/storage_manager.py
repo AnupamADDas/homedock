@@ -93,7 +93,7 @@ class StorageManagerService:
         try:
             res = subprocess.run(
                 [
-                    "lsblk", "-J", "-b",
+                    "lsblk", "-e", "7", "-J", "-b",
                     "-o", "NAME,KNAME,TYPE,FSTYPE,SIZE,MOUNTPOINT,LABEL,MODEL,SERIAL,ROTA,TRAN"
                 ],
                 capture_output=True,
@@ -106,7 +106,17 @@ class StorageManagerService:
             blockdevices = []
 
         for bdev in blockdevices:
-            dev_name = bdev.get("name")
+            dev_name = bdev.get("name") or ""
+            dev_type = (bdev.get("type") or "").lower()
+            fstype = (bdev.get("fstype") or "").lower()
+            mountpoint = bdev.get("mountpoint") or ""
+
+            # Filter out virtual loop devices, squashfs packages, and snap mounts
+            if dev_type == "loop" or dev_name.startswith("loop") or fstype == "squashfs":
+                continue
+            if mountpoint.startswith("/snap") or mountpoint.startswith("/var/lib/snapd"):
+                continue
+
             kname = bdev.get("kname") or dev_name
             tran = bdev.get("tran") or ("usb" if "usb" in (bdev.get("subsystems") or "") else "sata/internal")
             is_rotational = bdev.get("rota", False)
@@ -160,11 +170,18 @@ class StorageManagerService:
                 })
             
             for part in children:
-                p_name = part.get("name")
+                p_name = part.get("name") or ""
                 p_kname = part.get("kname") or p_name
-                p_mount = part.get("mountpoint")
-                p_fstype = part.get("fstype")
+                p_type = (part.get("type") or "").lower()
+                p_mount = part.get("mountpoint") or ""
+                p_fstype = (part.get("fstype") or "").lower()
                 p_size = part.get("size") or 0
+
+                # Ignore loop devices and snap mounts within children
+                if p_type == "loop" or p_name.startswith("loop") or p_fstype == "squashfs":
+                    continue
+                if p_mount.startswith("/snap") or p_mount.startswith("/var/lib/snapd"):
+                    continue
                 
                 p_read_rate = 0.0
                 p_write_rate = 0.0
@@ -309,6 +326,9 @@ class StorageManagerService:
         for dev in devices:
             for part in dev["partitions"]:
                 if part.get("mounted") and part.get("mountpoint"):
+                    mp = part["mountpoint"]
+                    if mp.startswith("/snap") or mp.startswith("/var/lib/snapd"):
+                        continue
                     label = f"{dev['model']} ({part['mountpoint']})"
                     locations.append({
                         "name": part["name"],

@@ -288,5 +288,23 @@ def test_root_filesystem_allowed():
     assert "/" in crumb_paths
     assert "/home" in crumb_paths
 
+def test_storage_chips_exclude_snap_and_boot(client, auth_headers):
+    # Set allowed roots to root filesystem /
+    from app.database import set_setting, get_setting
+    orig_roots = get_setting("global_allowed_roots", "[]")
+    set_setting("global_allowed_roots", '["/"]')
+    try:
+        resp = client.get("/api/files/list?path=/", headers=auth_headers)
+        assert resp.status_code == 200
+        chips = resp.json().get("storage_chips", [])
+        chip_paths = [c["path"] for c in chips]
+        for cp in chip_paths:
+            assert not cp.startswith("/snap"), f"Snap path appeared in storage chips: {cp}"
+            assert not cp.startswith("/var/lib/snapd"), f"Snapd path appeared in storage chips: {cp}"
+            assert not cp.startswith("/boot"), f"Boot path appeared in storage chips: {cp}"
+    finally:
+        set_setting("global_allowed_roots", orig_roots)
+
+
 
 

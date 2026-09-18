@@ -56,3 +56,19 @@ def test_storage_live_io_stats():
             assert "write_speed" in p
             assert p["read_speed"] >= 0.0
             assert p["write_speed"] >= 0.0
+
+def test_no_loop_or_snap_devices():
+    devices = storage_manager.get_devices()
+    for dev in devices:
+        assert not dev["name"].startswith("loop"), f"Loop device in devices: {dev['name']}"
+        assert dev.get("type") != "loop"
+        for p in dev.get("partitions", []):
+            assert not p["name"].startswith("loop")
+            assert not (p.get("mountpoint") or "").startswith("/snap")
+            assert not (p.get("mountpoint") or "").startswith("/var/lib/snapd")
+
+    locations = storage_manager.get_mounted_locations()
+    for loc in locations:
+        assert not loc["mountpoint"].startswith("/snap"), f"Snap mountpoint in locations: {loc['mountpoint']}"
+        assert not loc["mountpoint"].startswith("/var/lib/snapd")
+
