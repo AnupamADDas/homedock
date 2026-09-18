@@ -8,7 +8,7 @@ import os
 import time
 import asyncio
 from collections import deque
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import psutil
 
 class SystemMonitorService:
@@ -26,10 +26,11 @@ class SystemMonitorService:
         self.last_metrics: Dict[str, Any] = {}
         
         self.last_cpu_power: Optional[float] = None
+        self.last_power_source: str = "none"
         self.last_cpu_energy: Dict[str, int] = {}
         self.last_cpu_energy_time: Optional[float] = None
         self._rapl_domains: Optional[Dict[str, Dict[str, Any]]] = None
-        self._powercap_fix_attempted = False
+        self._cached_tdp: Optional[float] = None
 
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -39,23 +40,6 @@ class SystemMonitorService:
             psutil.cpu_percent(interval=None)
             self._init_net_counters()
             self._init_power_counters()
-        except Exception:
-            pass
-
-    def _ensure_powercap_permissions(self):
-        """Attempts to ensure /sys/devices/virtual/powercap is readable if permissions were reset."""
-        if self._powercap_fix_attempted:
-            return
-        self._powercap_fix_attempted = True
-        try:
-            import subprocess, shutil
-            if shutil.which("docker"):
-                subprocess.run(
-                    ["docker", "run", "--rm", "--privileged", "-v", "/sys:/sys", "alpine", "chmod", "-R", "a+r", "/sys/devices/virtual/powercap"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=3
-                )
         except Exception:
             pass
 
@@ -77,9 +61,7 @@ class SystemMonitorService:
                     if not os.path.exists(name_file) or not os.path.exists(energy_file):
                         continue
 
-                    if not os.access(energy_file, os.R_OK):
-                        self._ensure_powercap_permissions()
-
+                    # Energy file must be readable by current user
                     if not os.access(energy_file, os.R_OK):
                         continue
 
@@ -174,48 +156,134 @@ class SystemMonitorService:
             pass
         return None
 
-    def _sample_cpu_power(self, now: float) -> Optional[float]:
-        """Calculates instantaneous CPU package power in Watts from hardware counters."""
+    def _get_base_tdp(self) -> float:
+        """Determines processor base TDP in Watts from sysfs constraints or architecture profile."""
+        if self._cached_tdp is not None:
+            return self._cached_tdp
+
+        # 1. Check sysfs RAPL constraint max power (readable without root)
+        constraint_paths = [
+            "/sys/class/powercap/intel-rapl:0/constraint_0_max_power_uw",
+            "/sys/devices/virtual/powercap/intel-rapl/intel-rapl:0/constraint_0_max_power_uw",
+        ]
+        for p in constraint_paths:
+            if os.path.exists(p) and os.access(p, os.R_OK):
+                try:
+                    with open(p, "r") as f:
+                        uw = int(f.read().strip())
+                        if 5000000 <= uw <= 500000000:
+                            self._cached_tdp = round(uw / 1000000.0, 1)
+                            return self._cached_tdp
+                except Exception:
+                    pass
+
+        # 2. Check model name heuristic
+        model = ""
+        try:
+            with open("/proc/cpuinfo", "r") as f:
+                for line in f:
+                    if "model name" in line:
+                        model = line.split(":", 1)[1].strip().upper()
+                        break
+        except Exception:
+            pass
+
+        cores = psutil.cpu_count(logical=False) or 4
+        if " U " in f" {model} " or model.endswith("U") or "G7" in model or "G4" in model:
+            self._cached_tdp = 15.0
+        elif " H " in f" {model} " or " HQ " in f" {model} " or " HX " in f" {model} ":
+            self._cached_tdp = 45.0
+        elif " T " in f" {model} ":
+            self._cached_tdp = 35.0
+        elif " K " in f" {model} " or " KF " in f" {model} " or " KS " in f" {model} ":
+            self._cached_tdp = 125.0
+        elif "THREADRIPPER" in model or "EPYC" in model or "XEON" in model:
+            self._cached_tdp = 180.0
+        else:
+            self._cached_tdp = max(15.0, min(65.0, float(cores * 15.0)))
+
+        return self._cached_tdp
+
+    def _estimate_cpu_power(self, cpu_overall: float) -> float:
+        """Estimates CPU package power in Watts from utilization, frequency scaling, and TDP."""
+        tdp = self._get_base_tdp()
+        p_idle = max(1.2, round(tdp * 0.10, 1))
+
+        try:
+            freq = psutil.cpu_freq()
+            freq_curr = freq.current if freq and freq.current else None
+            freq_max = freq.max if freq and freq.max else None
+            freq_min = freq.min if freq and freq.min else 400.0
+        except Exception:
+            freq_curr, freq_max, freq_min = None, None, 400.0
+
+        if freq_curr and freq_max and freq_max > freq_min:
+            base_freq = freq_max * 0.5 if freq_max > 2500 else freq_max * 0.75
+            freq_ratio = max(0.4, min(freq_curr / base_freq, 2.2))
+        else:
+            freq_ratio = 1.0
+
+        usage_factor = max(0.0, min(cpu_overall / 100.0, 1.0))
+        p_active = (tdp - p_idle) * usage_factor * (freq_ratio ** 1.3)
+
+        estimated = p_idle + p_active
+        estimated = max(p_idle, min(estimated, tdp * 2.5))
+        return round(estimated, 1)
+
+    def _sample_cpu_power(self, now: float, cpu_overall: float = 0.0) -> Tuple[Optional[float], str]:
+        """Calculates instantaneous CPU package power in Watts from hardware counters or dynamic model."""
         if self._rapl_domains is None or not self._rapl_domains:
             self._rapl_domains = self._discover_rapl_domains()
-            if not self._rapl_domains:
-                return self._read_hwmon_cpu_power()
 
-        if not self.last_cpu_energy or not self.last_cpu_energy_time:
-            self._init_power_counters()
-            return self.last_cpu_power
+        # 1. RAPL hardware energy counters
+        if self._rapl_domains:
+            if not self.last_cpu_energy or not self.last_cpu_energy_time:
+                self._init_power_counters()
+                if self.last_cpu_power is not None:
+                    return self.last_cpu_power, "rapl"
+            else:
+                dt = now - self.last_cpu_energy_time
+                if dt >= 0.1:
+                    total_delta_uj = 0.0
+                    updated = False
+                    new_energies = {}
+                    for name, d in self._rapl_domains.items():
+                        try:
+                            with open(d["energy_file"], "r") as f:
+                                e = int(f.read().strip())
+                            prev_e = self.last_cpu_energy.get(name)
+                            if prev_e is not None:
+                                delta_e = e - prev_e
+                                if delta_e < 0:
+                                    delta_e += d["max_range"]
+                                total_delta_uj += delta_e
+                                updated = True
+                            new_energies[name] = e
+                        except Exception:
+                            pass
 
-        dt = now - self.last_cpu_energy_time
-        if dt < 0.1:
-            return self.last_cpu_power
+                    self.last_cpu_energy = new_energies
+                    self.last_cpu_energy_time = now
 
-        total_delta_uj = 0.0
-        updated = False
-        new_energies = {}
+                    if updated and dt > 0:
+                        watts = (total_delta_uj / 1000000.0) / dt
+                        if 0.0 <= watts < 2000.0:
+                            self.last_cpu_power = round(watts, 1)
+                            self.last_power_source = "rapl"
+                            return self.last_cpu_power, "rapl"
 
-        for name, d in self._rapl_domains.items():
-            try:
-                with open(d["energy_file"], "r") as f:
-                    e = int(f.read().strip())
-                prev_e = self.last_cpu_energy.get(name)
-                if prev_e is not None:
-                    delta_e = e - prev_e
-                    if delta_e < 0:
-                        delta_e += d["max_range"]
-                    total_delta_uj += delta_e
-                    updated = True
-                new_energies[name] = e
-            except Exception:
-                pass
+        # 2. Hwmon hardware sensors
+        hwmon_power = self._read_hwmon_cpu_power()
+        if hwmon_power is not None:
+            self.last_cpu_power = hwmon_power
+            self.last_power_source = "hwmon"
+            return self.last_cpu_power, "hwmon"
 
-        if updated and dt > 0:
-            watts = (total_delta_uj / 1000000.0) / dt
-            if 0.0 <= watts < 2000.0:
-                self.last_cpu_power = round(watts, 1)
-
-        self.last_cpu_energy = new_energies
-        self.last_cpu_energy_time = now
-        return self.last_cpu_power
+        # 3. Dynamic model fallback based on CPU TDP, frequency, and load
+        estimated = self._estimate_cpu_power(cpu_overall)
+        self.last_cpu_power = estimated
+        self.last_power_source = "estimated"
+        return self.last_cpu_power, "estimated"
 
     def _init_net_counters(self):
         try:
@@ -395,7 +463,7 @@ class SystemMonitorService:
         # CPU
         cpu_overall = psutil.cpu_percent(interval=None)
         cpu_cores = psutil.cpu_percent(interval=None, percpu=True)
-        cpu_power = self._sample_cpu_power(now)
+        cpu_power, power_source = self._sample_cpu_power(now, cpu_overall)
         try:
             freq = psutil.cpu_freq()
             freq_current = round(freq.current, 0) if freq else None
@@ -480,6 +548,7 @@ class SystemMonitorService:
                 "frequency_min": freq_min,
                 "frequency_max": freq_max,
                 "power_watts": cpu_power,
+                "power_source": power_source,
                 "history": list(self.cpu_history),
             },
             "memory": {

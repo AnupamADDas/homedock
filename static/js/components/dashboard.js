@@ -102,11 +102,21 @@ export class DashboardComponent {
 
         if (cpuPowerEl) {
           cpuPowerEl.textContent = cpu.power_watts != null ? `${cpu.power_watts.toFixed(1)} W` : "--";
+          if (cpu.power_source) {
+            cpuPowerEl.title = cpu.power_source === "rapl"
+              ? "Hardware RAPL Telemetry"
+              : "Dynamic TDP-based power estimation (Run: sudo chmod a+r /sys/class/powercap/intel-rapl:*/energy_uj for direct hardware register telemetry)";
+          }
         }
         if (cpuPowerBadgeEl) {
           if (cpu.power_watts != null) {
             cpuPowerBadgeEl.textContent = `⚡ ${cpu.power_watts.toFixed(1)} W`;
             cpuPowerBadgeEl.style.display = "inline-flex";
+            if (cpu.power_source) {
+              cpuPowerBadgeEl.title = cpu.power_source === "rapl"
+                ? "Hardware RAPL Telemetry"
+                : "Dynamic TDP-based power estimation (Run: sudo chmod a+r /sys/class/powercap/intel-rapl:*/energy_uj for direct hardware register telemetry)";
+            }
           } else {
             cpuPowerBadgeEl.textContent = "-- W";
           }
