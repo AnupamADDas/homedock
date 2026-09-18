@@ -49,7 +49,7 @@ HomeDock is specifically engineered to run efficiently on Linux servers and lapt
 ### 2.4 AriaNg-Style Download Manager
 * **Multi-Protocol Support:** Paste HTTP, HTTPS, FTP, or Magnet URLs, or upload `.torrent` files.
 * **Dynamic Destination & Default Synchronization:**
-  - Configurable default download directory (defaults to external `/DATA/HDD/Downloads` when present).
+  - Configurable default download directory (defaults dynamically to `~/Downloads` or custom configured path).
   - Dynamically updates the running `aria2c` daemon's global download directory via JSON-RPC (`aria2.changeGlobalOption`) without requiring service restarts.
   - Streamlined "New Download" task modal: Uses active default directory automatically, with an optional destination override and a **"Save as default"** persistence option.
   - Automatic Whitelisting: Configured default download locations are automatically permitted in allowed storage roots.
@@ -134,7 +134,7 @@ HomeDock is specifically engineered to run efficiently on Linux servers and lapt
   - **SMART Health:** `smartctl` requires elevated root ioctls. In accordance with the least-privilege principle, HomeDock avoids requesting root privileges and reports SMART as *"Unavailable (unprivileged access)"*.
 * **Drive Detection:**
   - Internal NVMe: `nvme0n1` partitions `/` and `/boot/efi`.
-  - External USB Drives: Detected via `lsblk -J` (e.g. `sda` / `sda1` on `/DATA/HDD`). Dynamic addition and removal are tracked using kernel netlink sockets.
+  - External USB Drives: Detected via `lsblk -J` (e.g. `sda` / `sda1` on `/media/usb` or `/mnt/storage`). Dynamic addition and removal are tracked using kernel netlink sockets.
 
 ---
 
@@ -159,23 +159,30 @@ Every dependency in HomeDock was chosen after verifying compatibility, resource 
 ## 6. Installation & Quick Start
 
 ### 6.1 Prerequisites
-* Linux OS (Ubuntu 22.04 / 24.04, Debian 12, Arch, or Fedora)
+* Linux OS (Ubuntu 22.04 / 24.04 / 26.04, Debian 12+, Arch, or Fedora)
 * Python 3.10+
-* System utilities: `lsblk`, `p7zip-full` (for 7z extraction)
+* System packages: `python3-venv`, `python3-pip`, `aria2`, `p7zip-full`, `lsblk`
 
-### 6.2 Setup
-Clone or navigate to the HomeDock directory:
+Install recommended packages on Debian/Ubuntu:
 ```bash
-cd /home/asus/homedock
+sudo apt update && sudo apt install -y python3-venv python3-pip aria2 p7zip-full
 ```
 
-Install Python dependencies:
+### 6.2 Setup
+Navigate to the HomeDock directory:
 ```bash
-python3 -m pip install -r requirements.txt
+cd ~/homedock
+```
+
+Create a virtual environment and install dependencies:
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### 6.3 Start HomeDock
-Run the startup script:
+Run the startup script (which automatically detects and activates `venv`):
 ```bash
 ./run.sh
 ```
@@ -200,9 +207,9 @@ HomeDock is configured via environment variables or settings in the web interfac
 |---|---|---|
 | `HOMEDOCK_HOST` | `0.0.0.0` | Host IP address to bind to. |
 | `HOMEDOCK_PORT` | `8090` | Port to listen on. |
-| `HOMEDOCK_DATA_DIR` | `/home/asus/homedock/data` | Directory storing SQLite DB, session files, and logs. |
+| `HOMEDOCK_DATA_DIR` | `<homedock_dir>/data` | Directory storing SQLite DB, session files, and logs. |
 | `HOMEDOCK_SECRET_KEY` | *(Auto-generated)* | 64-character secret key for signing JWT tokens. |
-| `HOMEDOCK_ARIA2_BIN` | `/home/asus/homedock/bin/aria2c` | Path to aria2c executable wrapper. |
+| `HOMEDOCK_ARIA2_BIN` | *(Auto-detected / system `aria2c`)* | Path to aria2c executable. |
 | `HOMEDOCK_ARIA2_PORT` | `6810` | Localhost port for internal aria2 RPC. |
 | `HOMEDOCK_SESSION_EXPIRE_HOURS` | `24` | Hours before an active session expires. |
 | `HOMEDOCK_RATE_LIMIT_MAX` | `5` | Maximum failed login attempts before lockout. |
@@ -220,10 +227,10 @@ HomeDock can run automatically on boot as either a **User Service** (recommended
    loginctl enable-linger $USER
    ```
 
-2. Create the user service directory and link/copy the unit file:
+2. Create the user service directory and copy the unit file:
    ```bash
    mkdir -p ~/.config/systemd/user
-   cp /home/asus/homedock/deploy/homedock.service ~/.config/systemd/user/
+   cp deploy/homedock.service ~/.config/systemd/user/
    ```
 
 3. Reload, enable, and start:
@@ -240,7 +247,7 @@ HomeDock can run automatically on boot as either a **User Service** (recommended
 ### Option B: System-Wide Service (Requires Sudo)
 1. Copy the system service file:
    ```bash
-   sudo cp /home/asus/homedock/systemd/homedock.service /etc/systemd/system/
+   sudo cp systemd/homedock.service /etc/systemd/system/
    ```
 
 2. Reload systemd daemon:
@@ -318,7 +325,7 @@ homedock.yourdomain.com {
 HomeDock includes an automated pytest suite covering authentication, security bounds, file operations, storage, and download manager:
 
 ```bash
-cd /home/asus/homedock
+cd ~/homedock
 python3 -m pytest tests/ -v
 ```
 
@@ -333,8 +340,8 @@ python3 -m pytest tests/ -v
 
 ## 11. Security Recommendations
 
-1. **Never run HomeDock as `root`:** Run under a dedicated system user (e.g. `asus`).
-2. **Restrict Allowed Roots:** Keep configured allowed filesystem roots limited strictly to user storage locations (e.g. `/DATA/HDD`, `/home/asus/storage`). Never add `/` or `/etc`.
+1. **Never run HomeDock as `root`:** Run under a dedicated unprivileged user (e.g. your regular system user).
+2. **Restrict Allowed Roots:** Keep configured allowed filesystem roots limited strictly to user storage locations (e.g. `/media/storage`, `/home/username/storage`). Never add `/` or `/etc`.
 3. **Always use HTTPS:** Deploy behind Nginx, Caddy, or Cloudflare Tunnels with TLS.
 4. **Change Default Credentials:** Change the default `admin` password immediately after initial deployment.
 

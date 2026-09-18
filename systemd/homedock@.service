@@ -1,21 +1,21 @@
 [Unit]
-Description=HomeDock — Modern Web-Based Server Manager
+Description=HomeDock — Modern Web-Based Server Manager (%i)
 After=network.target local-fs.target
 Wants=network-online.target
 
 [Service]
-# NOTE: Run `./deploy/install-service.sh --system` to configure and install automatically,
-# or replace 'YOUR_USER' and '/path/to/homedock' below with your actual values.
-User=YOUR_USER
-Group=YOUR_USER
-WorkingDirectory=/path/to/homedock
-ExecStart=/path/to/homedock/run.sh
+Type=simple
+User=%i
+Group=%i
+WorkingDirectory=/home/%i/homedock
+ExecStart=/home/%i/homedock/run.sh
 Restart=always
 RestartSec=5
 
 # Environment configuration
 Environment=HOMEDOCK_HOST=0.0.0.0
 Environment=HOMEDOCK_PORT=8090
+Environment=PYTHONPATH=/home/%i/homedock
 Environment=PYTHONUNBUFFERED=1
 
 # Security Hardening

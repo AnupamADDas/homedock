@@ -116,8 +116,6 @@ async def browse_folders(
     else:
         if allowed_roots and os.path.exists(allowed_roots[0]):
             target_path = Path(allowed_roots[0]).resolve()
-        elif Path("/DATA/HDD").exists():
-            target_path = Path("/DATA/HDD").resolve()
         else:
             target_path = Path.home().resolve()
 

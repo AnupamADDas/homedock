@@ -24,9 +24,10 @@ def test_dir():
 @pytest.fixture
 def auth_headers(client, test_dir):
     from app.database import get_setting
-    orig_roots = get_setting("global_allowed_roots", json.dumps(["/DATA/HDD", "/home/asus"]))
-    orig_dl = get_setting("default_download_dir", "/DATA/HDD/Downloads")
-    set_setting("global_allowed_roots", json.dumps([test_dir, "/DATA", "/DATA/HDD", "/home/asus"]))
+    home_dir = str(Path.home().resolve())
+    orig_roots = get_setting("global_allowed_roots", json.dumps([home_dir]))
+    orig_dl = get_setting("default_download_dir", str(Path.home() / "Downloads"))
+    set_setting("global_allowed_roots", json.dumps([test_dir, home_dir]))
     set_setting("default_download_dir", test_dir)
     login_resp = client.post("/api/auth/login", json={"username": "admin", "password": "homedock2026!"})
     token = login_resp.json()["access_token"]

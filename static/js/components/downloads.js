@@ -57,10 +57,10 @@ export class DownloadManagerComponent {
       const helperEl = document.getElementById("addDownloadDestHelper");
       const globalDirInput = document.getElementById("globalDefaultDlDirInput");
       if (destInput) {
-        destInput.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
+        destInput.placeholder = this.defaultDir ? `Default: ${this.defaultDir}` : "Default download folder";
       }
       if (ytDestInput) {
-        ytDestInput.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
+        ytDestInput.placeholder = this.defaultDir ? `Default: ${this.defaultDir}` : "Default download folder";
       }
       if (helperEl && this.defaultDir) {
         helperEl.innerHTML = `Default download folder: <code style="font-size: 0.72rem;">${this.defaultDir}</code> (leave blank to use default, or Browse to customize)`;
@@ -336,7 +336,7 @@ export class DownloadManagerComponent {
         if (paneDirect) paneDirect.style.display = "none";
         const ytDest = document.getElementById("inputYtDest");
         if (ytDest && !ytDest.value) {
-          ytDest.placeholder = `Default: ${this.defaultDir || "/DATA/HDD/Downloads"}`;
+          ytDest.placeholder = this.defaultDir ? `Default: ${this.defaultDir}` : "Default download folder";
         }
       } else {
         tabDirect?.classList.add("active");

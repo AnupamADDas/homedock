@@ -267,7 +267,7 @@
                 <!-- Hardware Identity -->
                 <div style="margin-bottom: 0.75rem;">
                   <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.15rem;" id="sensorCpuModel">Intel Core i7-8550U</div>
-                  <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);" id="sensorHostKernel">asus-ZenBook • Linux 7.0.0-31-generic</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);" id="sensorHostKernel">Linux Server</div>
                 </div>
 
                 <!-- Motherboard & Subsystem Thermals -->
@@ -551,7 +551,7 @@
                   <div class="form-group">
                     <label class="form-label">Default Download Directory</label>
                     <div style="display: flex; gap: 0.5rem;">
-                      <input type="text" id="settingDefaultDlDir" class="form-control" placeholder="/DATA/HDD/Downloads">
+                      <input type="text" id="settingDefaultDlDir" class="form-control" placeholder="e.g. /home/username/Downloads">
                       <button type="button" id="btnBrowseDefaultDlDir" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                         <span>Browse</span>
@@ -650,7 +650,7 @@
                   </div>
                 </div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
-                  <p><strong>Platform:</strong> ASUS ZenBook 13 UX331UAL (Intel Core i7-8550U, Linux 7.0 generic, Ubuntu 24.04)</p>
+                  <p><strong>Platform:</strong> Linux Server (Standard POSIX / Linux environment)</p>
                   <p style="margin-top: 0.5rem;"><strong>Sensors:</strong> CPU package and core temperatures obtained via standard Linux <code>hwmon</code>. Fan RPM read directly from ASUS WMI interface. If any sensor is disconnected or unsupported, it gracefully reports as unavailable without failing.</p>
                   <p style="margin-top: 0.5rem;"><strong>Security:</strong> Running under an unprivileged user process. SMART attributes require root device ioctls and are marked unavailable to preserve the principle of least privilege.</p>
                 </div>
@@ -699,7 +699,7 @@
               <div class="form-group">
                 <label class="form-label">Destination Directory (Optional)</label>
                 <div style="display: flex; gap: 0.5rem;">
-                  <input type="text" id="addDownloadDestInput" class="form-control font-mono" placeholder="/DATA/HDD/Downloads">
+                  <input type="text" id="addDownloadDestInput" class="form-control font-mono" placeholder="Default download folder">
                   <button type="button" id="btnBrowseDownloadDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                     <span>Browse</span>
@@ -848,7 +848,7 @@
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Destination Directory</label>
                 <div style="display: flex; gap: 0.5rem;">
-                  <input type="text" id="inputYtDest" class="form-control font-mono" placeholder="/DATA/HDD/Downloads">
+                  <input type="text" id="inputYtDest" class="form-control font-mono" placeholder="Default download folder">
                   <button type="button" id="btnBrowseYtDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                     <span>Browse</span>
@@ -915,7 +915,7 @@
           <div class="form-group" style="margin-bottom: 0; padding-top: 0.8rem; border-top: 1px solid var(--border-color);">
             <label class="form-label">Default Download Directory</label>
             <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="globalDefaultDlDirInput" class="form-control font-mono" placeholder="/DATA/HDD/Downloads">
+              <input type="text" id="globalDefaultDlDirInput" class="form-control font-mono" placeholder="e.g. /home/username/Downloads">
               <button type="button" id="btnBrowseGlobalDefaultDlDir" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 <span>Browse</span>
@@ -1005,7 +1005,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Custom Allowed Roots (optional, one per line)</label>
-              <textarea id="newUserRoots" class="form-control" rows="2" placeholder="/DATA/HDD/UserFolder"></textarea>
+              <textarea id="newUserRoots" class="form-control" rows="2" placeholder="e.g. /home/username/storage (one per line)"></textarea>
               <small style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to inherit global allowed roots.</small>
             </div>
           </div>
@@ -1051,7 +1051,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Custom Allowed Roots (optional, one per line)</label>
-              <textarea id="editUserRoots" class="form-control" rows="2" placeholder="/DATA/HDD/UserFolder"></textarea>
+              <textarea id="editUserRoots" class="form-control" rows="2" placeholder="e.g. /home/username/storage (one per line)"></textarea>
               <small style="color: var(--text-muted); font-size: 0.78rem;">Leave blank to inherit global allowed roots.</small>
             </div>
           </div>
@@ -1108,7 +1108,7 @@
             <div class="form-group">
               <label class="form-label">Destination Directory</label>
               <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="fmTransferDestInput" class="form-control" placeholder="/DATA/HDD/..." required>
+                <input type="text" id="fmTransferDestInput" class="form-control" placeholder="/path/to/destination..." required>
                 <button type="button" id="btnBrowseTransferDest" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   <span>Browse</span>

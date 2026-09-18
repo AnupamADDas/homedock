@@ -44,7 +44,7 @@ def auth_headers(client, test_sandbox):
     # Register sandbox allowed root in database settings and restore on teardown
     import json
     from app.database import get_setting
-    orig_roots = get_setting("global_allowed_roots", json.dumps(["/DATA/HDD", "/home/asus"]))
+    orig_roots = get_setting("global_allowed_roots", json.dumps([str(Path.home().resolve())]))
     set_setting("global_allowed_roots", json.dumps([test_sandbox["allowed"]]))
 
     login_resp = client.post("/api/auth/login", json={"username": "admin", "password": "homedock2026!"})
@@ -279,7 +279,7 @@ def test_root_filesystem_allowed():
     roots = ["/"]
     assert file_service.validate_path("/", roots) == Path("/")
     assert file_service.validate_path("/home", roots) == Path("/home")
-    assert file_service.validate_path("/home/asus", roots) == Path("/home/asus")
+    assert file_service.validate_path(str(Path.home()), roots) == Path.home().resolve()
 
     dir_data = file_service.list_directory(Path("/home"), roots)
     assert dir_data["current_path"] == "/home"
