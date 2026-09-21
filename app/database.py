@@ -7,17 +7,29 @@ import sqlite3
 import json
 import time
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Generator
 from app.config import DB_PATH, get_initial_allowed_roots, get_default_download_dir, DATA_DIR
 
-def get_db_connection() -> sqlite3.Connection:
+@contextmanager
+def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(str(DB_PATH), timeout=10.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("PRAGMA foreign_keys=ON;")
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
 
 def init_db():
     """Initializes SQLite database tables and default configuration."""
