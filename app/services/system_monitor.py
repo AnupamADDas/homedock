@@ -34,6 +34,7 @@ class SystemMonitorService:
 
         self._running = False
         self._task: Optional[asyncio.Task] = None
+        self._last_trim_time = time.time()
         
         # Initial read to initialize psutil internal diff counters
         try:
@@ -459,6 +460,16 @@ class SystemMonitorService:
     def sample_metrics(self) -> Dict[str, Any]:
         """Calculates instantaneous telemetry metrics and appends to circular history."""
         now = time.time()
+
+        # Periodic memory compaction and glibc heap trimming every 60 seconds
+        if now - self._last_trim_time > 60.0:
+            self._last_trim_time = now
+            try:
+                import ctypes, gc
+                gc.collect()
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except Exception:
+                pass
         
         # CPU
         cpu_overall = psutil.cpu_percent(interval=None)

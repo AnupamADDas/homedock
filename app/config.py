@@ -97,8 +97,8 @@ def get_initial_allowed_roots() -> List[str]:
 
     roots: List[str] = [str(Path.home().resolve())]
 
-    # Auto-discover readable mount points under standard Linux media locations
-    for base in ("/media", "/mnt"):
+    # Auto-discover readable mount points under standard Linux media and data locations
+    for base in ("/media", "/mnt", "/data", "/srv"):
         if os.path.isdir(base):
             try:
                 for entry in Path(base).iterdir():

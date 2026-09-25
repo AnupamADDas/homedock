@@ -257,97 +257,15 @@ async def download_file(
         if not resolved.is_file():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target is not a file")
 
-        file_size = resolved.stat().st_size
         mime_type, _ = mimetypes.guess_type(str(resolved))
         mime_type = mime_type or "application/octet-stream"
 
-        # Buffer size: 1 MB chunks to eliminate small-block disk thrashing and maximize throughput
-        CHUNK_SIZE = 1024 * 1024
-
-        range_header = request.headers.get("range") or request.headers.get("Range")
-
-        if range_header and range_header.startswith("bytes="):
-            try:
-                range_val = range_header.replace("bytes=", "").strip()
-                parts = range_val.split("-")
-                
-                if len(parts) == 2:
-                    start_str, end_str = parts[0].strip(), parts[1].strip()
-                    if start_str and end_str:
-                        start = int(start_str)
-                        end = min(int(end_str), file_size - 1)
-                    elif start_str:
-                        start = int(start_str)
-                        end = file_size - 1
-                    elif end_str:
-                        suffix = int(end_str)
-                        start = max(file_size - suffix, 0)
-                        end = file_size - 1
-                    else:
-                        start = 0
-                        end = file_size - 1
-                else:
-                    start = 0
-                    end = file_size - 1
-
-                if start > end or start >= file_size:
-                    raise HTTPException(
-                        status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
-                        headers={"Content-Range": f"bytes */{file_size}"}
-                    )
-
-                content_length = end - start + 1
-
-                def iter_range():
-                    with open(resolved, "rb") as f:
-                        f.seek(start)
-                        remaining = content_length
-                        while remaining > 0:
-                            read_size = min(remaining, CHUNK_SIZE)
-                            data = f.read(read_size)
-                            if not data:
-                                break
-                            remaining -= len(data)
-                            yield data
-
-                headers = {
-                    "Content-Range": f"bytes {start}-{end}/{file_size}",
-                    "Accept-Ranges": "bytes",
-                    "Content-Length": str(content_length),
-                    "Content-Disposition": f'attachment; filename="{resolved.name}"',
-                    "Content-Type": mime_type,
-                    "Cache-Control": "public, max-age=3600",
-                }
-
-                return StreamingResponse(
-                    iter_range(),
-                    status_code=status.HTTP_206_PARTIAL_CONTENT,
-                    headers=headers
-                )
-
-            except (ValueError, IndexError):
-                pass
-
-        # Full file stream with 1MB chunks and Accept-Ranges advertisement
-        def iter_full():
-            with open(resolved, "rb") as f:
-                while chunk := f.read(CHUNK_SIZE):
-                    yield chunk
-
-        headers = {
-            "Accept-Ranges": "bytes",
-            "Content-Length": str(file_size),
-            "Content-Disposition": f'attachment; filename="{resolved.name}"',
-            "Content-Type": mime_type,
-            "Cache-Control": "public, max-age=3600",
-        }
-
-        return StreamingResponse(
-            iter_full(),
-            status_code=status.HTTP_200_OK,
-            headers=headers
+        return FileResponse(
+            path=str(resolved),
+            filename=resolved.name,
+            media_type=mime_type,
+            content_disposition_type="attachment",
         )
-
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except FileNotFoundError as e:
