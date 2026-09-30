@@ -1326,23 +1326,31 @@ body.window-dragging .window-titlebar {
   position: relative;
 }
 
-.dock-icon svg {
+.dock-icon svg,
+.dock-icon img,
+.dock-app-img {
   width: 48px;
   height: 48px;
   display: block;
-  border-radius: 11px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+  transition: filter 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1), transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.dock-item:hover .dock-icon svg {
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
-  filter: brightness(1.06);
+.dock-item:hover .dock-icon svg,
+.dock-item:hover .dock-icon img,
+.dock-item:hover .dock-app-img {
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.65)) brightness(1.06);
+  transform: translateY(-2px);
 }
 
-.dock-item:active .dock-icon svg {
-  transform: scale(0.96);
-  filter: brightness(0.94);
+.dock-item:active .dock-icon svg,
+.dock-item:active .dock-icon img,
+.dock-item:active .dock-app-img {
+  transform: scale(0.94) translateY(0);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5)) brightness(0.94);
 }
 
 .dock-badge {
@@ -2401,6 +2409,13 @@ body.window-dragging .window-titlebar {
   }
 
   .dock-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .dock-icon svg,
+  .dock-icon img,
+  .dock-app-img {
     width: 36px;
     height: 36px;
   }

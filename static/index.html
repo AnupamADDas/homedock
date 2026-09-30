@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>HomeDock — Server Manager</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=blue_dashboard_v3">
+  <link rel="stylesheet" href="/static/css/styles.css?v=macosicons_dock_v1">
 </head>
 <body>
   <!-- Ambient macOS Sonoma / Sequoia Wallpaper Background -->
@@ -763,56 +763,7 @@
         <!-- Desktop / Dashboard (macOS Activity Monitor Style) -->
         <div class="dock-item nav-item active" data-view="dashboard" data-app="dashboard" title="Desktop & Metrics">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="actMonBg" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#334155"/>
-                  <stop offset="100%" stop-color="#0f172a"/>
-                </linearGradient>
-                <linearGradient id="actMonScreen" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#061826"/>
-                  <stop offset="100%" stop-color="#020b12"/>
-                </linearGradient>
-                <linearGradient id="actPulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#22c55e"/>
-                  <stop offset="50%" stop-color="#4ade80"/>
-                  <stop offset="100%" stop-color="#86efac"/>
-                </linearGradient>
-                <linearGradient id="actWaveFill" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="rgba(34, 197, 94, 0.35)"/>
-                  <stop offset="100%" stop-color="rgba(34, 197, 94, 0.0)"/>
-                </linearGradient>
-                <linearGradient id="actGlass" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.35)"/>
-                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0.0)"/>
-                </linearGradient>
-                <filter id="actGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="0.8" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <!-- Outer Bezel -->
-              <rect width="48" height="48" rx="11" fill="url(#actMonBg)"/>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
-              <!-- CRT / LCD Screen -->
-              <rect x="4.5" y="4.5" width="39" height="39" rx="8" fill="url(#actMonScreen)" stroke="#0ea5e9" stroke-opacity="0.3" stroke-width="0.75"/>
-              <!-- Grid Lines -->
-              <line x1="5" y1="14" x2="43" y2="14" stroke="#0ea5e9" stroke-opacity="0.12" stroke-width="0.75"/>
-              <line x1="5" y1="24" x2="43" y2="24" stroke="#0ea5e9" stroke-opacity="0.18" stroke-width="0.75"/>
-              <line x1="5" y1="34" x2="43" y2="34" stroke="#0ea5e9" stroke-opacity="0.12" stroke-width="0.75"/>
-              <line x1="14" y1="5" x2="14" y2="43" stroke="#0ea5e9" stroke-opacity="0.12" stroke-width="0.75"/>
-              <line x1="24" y1="5" x2="24" y2="43" stroke="#0ea5e9" stroke-opacity="0.18" stroke-width="0.75"/>
-              <line x1="34" y1="5" x2="34" y2="43" stroke="#0ea5e9" stroke-opacity="0.12" stroke-width="0.75"/>
-              <!-- Area under pulse wave -->
-              <path d="M 6 27 L 13 27 L 16 20 L 19 32 L 23 12 L 27 34 L 31 22 L 35 27 L 42 27 L 42 41 C 42 41 40 42 36 42 L 12 42 C 8 42 6 41 6 41 Z" fill="url(#actWaveFill)"/>
-              <!-- Pulse Waveform -->
-              <path d="M 5 27 L 13 27 L 16 20 L 19 32 L 23 12 L 27 34 L 31 22 L 35 27 L 43 27" fill="none" stroke="url(#actPulseGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#actGlow)"/>
-              <!-- Top Glass Sheen -->
-              <path d="M 5 5 L 43 5 C 43 5 43 18 24 18 C 5 18 5 5 5 5 Z" fill="url(#actGlass)"/>
-            </svg>
+            <img src="/static/img/icons/dock-dashboard.png" class="dock-app-img" alt="Desktop & Metrics" draggable="false">
           </div>
           <span class="dock-tooltip">Desktop</span>
           <span class="dock-dot"></span>
@@ -821,174 +772,26 @@
         <!-- File Manager (macOS Finder Style) -->
         <div class="dock-item nav-item" data-view="files" data-app="files" title="File Manager">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="finderLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#60a5fa"/>
-                  <stop offset="40%" stop-color="#38bdf8"/>
-                  <stop offset="100%" stop-color="#0284c7"/>
-                </linearGradient>
-                <linearGradient id="finderRight" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#0284c7"/>
-                  <stop offset="60%" stop-color="#0369a1"/>
-                  <stop offset="100%" stop-color="#075985"/>
-                </linearGradient>
-                <linearGradient id="finderGlass" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.4)"/>
-                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0.0)"/>
-                </linearGradient>
-                <filter id="finderShadow" x="-10%" y="-10%" width="120%" height="120%">
-                  <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-color="rgba(0,0,0,0.3)"/>
-                </filter>
-                <clipPath id="squircleClip">
-                  <rect width="48" height="48" rx="11"/>
-                </clipPath>
-              </defs>
-              <g clip-path="url(#squircleClip)">
-                <!-- Right Side Base -->
-                <rect width="48" height="48" fill="url(#finderRight)"/>
-                <!-- Left Side with Curved Nose Dividing Line -->
-                <path d="M 0 0 L 24 0 C 24 0 25.5 14 21.5 22 C 20.2 24.5 21 26.5 24 26.5 C 24.5 26.5 24.5 48 24.5 48 L 0 48 Z" fill="url(#finderLeft)"/>
-                
-                <!-- Central Nose Divider Stroke -->
-                <path d="M 24 0 C 24 0 25.5 14 21.5 22 C 20.2 24.5 21 26.5 24 26.5 L 24 48" fill="none" stroke="rgba(0, 30, 70, 0.4)" stroke-width="1.2" stroke-linecap="round"/>
-                
-                <!-- Eyes -->
-                <ellipse cx="16.5" cy="18.5" rx="3.2" ry="3.8" fill="#FFFFFF" filter="url(#finderShadow)"/>
-                <ellipse cx="16.5" cy="18.8" rx="1.8" ry="2.2" fill="#0c4a6e"/>
-                <circle cx="15.8" cy="17.8" r="0.7" fill="#FFFFFF"/>
-                
-                <ellipse cx="31.5" cy="18.5" rx="3.2" ry="3.8" fill="#FFFFFF" filter="url(#finderShadow)"/>
-                <ellipse cx="31.5" cy="18.8" rx="1.8" ry="2.2" fill="#082f49"/>
-                <circle cx="30.8" cy="17.8" r="0.7" fill="#FFFFFF"/>
-
-                <!-- Eyebrows -->
-                <path d="M 13.5 13.5 Q 16.5 11.5 19.5 13" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.2" stroke-linecap="round"/>
-                <path d="M 28.5 13 Q 31.5 11.5 34.5 13.5" fill="none" stroke="rgba(255,255,255,0.75)" stroke-width="1.2" stroke-linecap="round"/>
-
-                <!-- Authentic Finder Smiling Mouth -->
-                <path d="M 12.5 27 C 14 36.5, 34 36.5, 35.5 27" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" filter="url(#finderShadow)"/>
-                <path d="M 11.8 26.2 L 13.2 27.8" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M 36.2 26.2 L 34.8 27.8" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
-
-                <!-- Top Specular Glass Curve -->
-                <path d="M 0 0 L 48 0 L 48 12 C 34 16 14 16 0 12 Z" fill="url(#finderGlass)"/>
-              </g>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-            </svg>
+            <img src="/static/img/icons/dock-files.png" class="dock-app-img" alt="File Manager" draggable="false">
           </div>
           <span class="dock-tooltip">File Manager</span>
           <span class="dock-dot"></span>
         </div>
 
-        <!-- Download Manager (macOS Safari / Downloads Folder Style) -->
+        <!-- Download Manager (macOS Downloads Folder Style) -->
         <div class="dock-item nav-item" data-view="downloads" data-app="downloads" title="Download Manager">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="dlBgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#3b82f6"/>
-                  <stop offset="50%" stop-color="#1d4ed8"/>
-                  <stop offset="100%" stop-color="#1e1b4b"/>
-                </linearGradient>
-                <linearGradient id="dlArrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#ffffff"/>
-                  <stop offset="70%" stop-color="#e0f2fe"/>
-                  <stop offset="100%" stop-color="#93c5fd"/>
-                </linearGradient>
-                <linearGradient id="dlTrayGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="rgba(255, 255, 255, 0.45)"/>
-                  <stop offset="100%" stop-color="rgba(255, 255, 255, 0.12)"/>
-                </linearGradient>
-                <filter id="dlGlow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="rgba(0,0,0,0.4)"/>
-                </filter>
-              </defs>
-              <rect width="48" height="48" rx="11" fill="url(#dlBgGrad)"/>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-              
-              <!-- Concentric Rings -->
-              <circle cx="24" cy="22" r="16" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-              <circle cx="24" cy="22" r="11" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="3 2"/>
-
-              <!-- 3D Download Arrow -->
-              <g filter="url(#dlGlow)">
-                <path d="M 21 8 L 27 8 L 27 20 L 33 20 L 24 30 L 15 20 L 21 20 Z" fill="url(#dlArrowGrad)"/>
-              </g>
-
-              <!-- Frosted Glass Catchment Tray -->
-              <path d="M 10 30 C 10 38, 38 38, 38 30 L 35 34 C 33 39.5, 15 39.5, 13 34 Z" fill="url(#dlTrayGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="0.75"/>
-              <line x1="14" y1="36" x2="34" y2="36" stroke="#60a5fa" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
-
-              <!-- Top Glass Sheen -->
-              <path d="M 0 0 L 48 0 L 48 10 C 32 14 16 14 0 10 Z" fill="rgba(255,255,255,0.25)"/>
-            </svg>
+            <img src="/static/img/icons/dock-downloads.png" class="dock-app-img" alt="Download Manager" draggable="false">
             <span id="dockDownloadBadge" class="dock-badge" style="display: none;">0</span>
           </div>
           <span class="dock-tooltip">Downloads</span>
           <span class="dock-dot"></span>
         </div>
 
-        <!-- Settings (macOS Ventura/Sonoma Mechanical Gear) -->
+        <!-- Settings (macOS System Settings Gear Style) -->
         <div class="dock-item nav-item" data-view="settings" data-app="settings" title="System Settings">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="gearBg" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#475569"/>
-                  <stop offset="50%" stop-color="#334155"/>
-                  <stop offset="100%" stop-color="#1e293b"/>
-                </linearGradient>
-                <linearGradient id="metalGear" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#f8fafc"/>
-                  <stop offset="45%" stop-color="#cbd5e1"/>
-                  <stop offset="100%" stop-color="#94a3b8"/>
-                </linearGradient>
-                <linearGradient id="smallGear" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#94a3b8"/>
-                  <stop offset="100%" stop-color="#64748b"/>
-                </linearGradient>
-                <filter id="gearShadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.5)"/>
-                </filter>
-              </defs>
-              <rect width="48" height="48" rx="11" fill="url(#gearBg)"/>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-
-              <!-- Smaller Interlocking Secondary Gear (Top-Right) -->
-              <g transform="translate(32, 14) scale(0.65)" filter="url(#gearShadow)">
-                <circle cx="0" cy="0" r="10" fill="url(#smallGear)"/>
-                <path d="M -2.5 -12 L 2.5 -12 L 2.2 -9 L -2.2 -9 Z
-                         M 7.5 -9.5 L 11 -6 L 8.5 -4.5 L 6 -6.5 Z
-                         M 12 -2.5 L 12 2.5 L 9 2.2 L 9 -2.2 Z
-                         M 11 6 L 7.5 9.5 L 6 6.5 L 8.5 4.5 Z
-                         M 2.5 12 L -2.5 12 L -2.2 9 L 2.2 9 Z
-                         M -7.5 9.5 L -11 6 L -8.5 4.5 L -6 6.5 Z
-                         M -12 2.5 L -12 -2.5 L -9 -2.2 L -9 2.2 Z
-                         M -11 -6 L -7.5 -9.5 L -6 -6.5 L -8.5 -4.5 Z" fill="url(#smallGear)"/>
-                <circle cx="0" cy="0" r="4" fill="#1e293b"/>
-              </g>
-
-              <!-- Primary Main 3D Gear -->
-              <g transform="translate(21, 26)" filter="url(#gearShadow)">
-                <!-- 8 Gear Teeth -->
-                <path d="M -3.5 -17.5 L 3.5 -17.5 L 3 -13.5 L -3 -13.5 Z
-                         M 10.5 -14 L 15.5 -9 L 12 -6.5 L 8 -10 Z
-                         M 17.5 -3.5 L 17.5 3.5 L 13.5 3 L 13.5 -3 Z
-                         M 15.5 9 L 10.5 14 L 8 10 L 12 6.5 Z
-                         M 3.5 17.5 L -3.5 17.5 L -3 13.5 L 3 13.5 Z
-                         M -10.5 14 L -15.5 9 L -12 6.5 L -8 10 Z
-                         M -17.5 3.5 L -17.5 -3.5 L -13.5 -3 L -13.5 3 Z
-                         M -15.5 -9 L -10.5 -14 L -8 -10 L -12 -6.5 Z" fill="url(#metalGear)"/>
-                <circle cx="0" cy="0" r="14" fill="url(#metalGear)"/>
-                <circle cx="0" cy="0" r="9" fill="none" stroke="#64748b" stroke-width="1.2" opacity="0.6"/>
-                <circle cx="0" cy="0" r="5" fill="#0f172a"/>
-                <circle cx="0" cy="0" r="5" fill="none" stroke="#475569" stroke-width="0.8"/>
-              </g>
-
-              <!-- Top Glass Highlight -->
-              <path d="M 0 0 L 48 0 L 48 10 C 32 14 16 14 0 10 Z" fill="rgba(255,255,255,0.2)"/>
-            </svg>
+            <img src="/static/img/icons/dock-settings.png" class="dock-app-img" alt="System Settings" draggable="false">
           </div>
           <span class="dock-tooltip">Settings</span>
           <span class="dock-dot"></span>
@@ -999,109 +802,15 @@
         <!-- Rescan Drives Shortcut (macOS Disk Utility Style) -->
         <div class="dock-item" id="dockRescanBtn" title="Rescan Drives">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="diskBg" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#059669"/>
-                  <stop offset="50%" stop-color="#047857"/>
-                  <stop offset="100%" stop-color="#064e3b"/>
-                </linearGradient>
-                <linearGradient id="hddBody" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#e2e8f0"/>
-                  <stop offset="50%" stop-color="#94a3b8"/>
-                  <stop offset="100%" stop-color="#475569"/>
-                </linearGradient>
-                <radialGradient id="platterGrad" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#cbd5e1"/>
-                  <stop offset="45%" stop-color="#67e8f9"/>
-                  <stop offset="70%" stop-color="#c084fc"/>
-                  <stop offset="90%" stop-color="#fde047"/>
-                  <stop offset="100%" stop-color="#94a3b8"/>
-                </radialGradient>
-                <filter id="hddShadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.4)"/>
-                </filter>
-              </defs>
-              <rect width="48" height="48" rx="11" fill="url(#diskBg)"/>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-
-              <!-- Drive Aluminum Chassis -->
-              <rect x="8" y="7" width="32" height="34" rx="4" fill="url(#hddBody)" stroke="#cbd5e1" stroke-width="0.75" filter="url(#hddShadow)"/>
-              
-              <!-- Corner Screws -->
-              <circle cx="11" cy="10" r="1.2" fill="#475569"/>
-              <circle cx="37" cy="10" r="1.2" fill="#475569"/>
-              <circle cx="11" cy="38" r="1.2" fill="#475569"/>
-              <circle cx="37" cy="38" r="1.2" fill="#475569"/>
-
-              <!-- Magnetic Platter Disc -->
-              <circle cx="24" cy="22" r="11" fill="url(#platterGrad)"/>
-              <circle cx="24" cy="22" r="4.2" fill="#334155" stroke="#f1f5f9" stroke-width="0.75"/>
-              <circle cx="24" cy="22" r="1.8" fill="#94a3b8"/>
-
-              <!-- Actuator Arm -->
-              <path d="M 12 36 L 22 24" stroke="#f1f5f9" stroke-width="2.2" stroke-linecap="round"/>
-              <circle cx="12" cy="36" r="3.2" fill="#475569" stroke="#cbd5e1" stroke-width="0.75"/>
-              <polygon points="21,23 24,22 23,25" fill="#f59e0b"/>
-
-              <!-- Active Status LED -->
-              <circle cx="34" cy="36" r="1.6" fill="#34d399"/>
-              <circle cx="34" cy="36" r="2.8" fill="none" stroke="#34d399" stroke-width="0.6" opacity="0.6"/>
-
-              <!-- Top Sheen -->
-              <path d="M 0 0 L 48 0 L 48 10 C 32 14 16 14 0 10 Z" fill="rgba(255,255,255,0.22)"/>
-            </svg>
+            <img src="/static/img/icons/dock-rescan.png" class="dock-app-img" alt="Rescan Drives" draggable="false">
           </div>
           <span class="dock-tooltip">Rescan Disks</span>
         </div>
 
-        <!-- Lock Screen / Sign Out (macOS Security Padlock) -->
+        <!-- Lock Screen / Sign Out (macOS Keychain Access Style) -->
         <div class="dock-item" id="dockLockBtn" title="Lock Desktop">
           <div class="dock-icon">
-            <svg viewBox="0 0 48 48" width="48" height="48">
-              <defs>
-                <linearGradient id="lockBg" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f43f5e"/>
-                  <stop offset="50%" stop-color="#be123c"/>
-                  <stop offset="100%" stop-color="#881337"/>
-                </linearGradient>
-                <linearGradient id="shackleMetal" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stop-color="#94a3b8"/>
-                  <stop offset="25%" stop-color="#f8fafc"/>
-                  <stop offset="50%" stop-color="#e2e8f0"/>
-                  <stop offset="75%" stop-color="#f8fafc"/>
-                  <stop offset="100%" stop-color="#64748b"/>
-                </linearGradient>
-                <linearGradient id="brassLock" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#fef08a"/>
-                  <stop offset="35%" stop-color="#eab308"/>
-                  <stop offset="80%" stop-color="#ca8a04"/>
-                  <stop offset="100%" stop-color="#854d0e"/>
-                </linearGradient>
-                <filter id="lockShadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="rgba(0,0,0,0.5)"/>
-                </filter>
-              </defs>
-              <rect width="48" height="48" rx="11" fill="url(#lockBg)"/>
-              <rect x="0.5" y="0.5" width="47" height="47" rx="10.5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
-
-              <!-- Chrome Shackle -->
-              <path d="M 17 21 L 17 15 C 17 9.5, 31 9.5, 31 15 L 31 21" fill="none" stroke="url(#shackleMetal)" stroke-width="4.2" stroke-linecap="round" filter="url(#lockShadow)"/>
-
-              <!-- Brass Lock Body -->
-              <g filter="url(#lockShadow)">
-                <rect x="12" y="19" width="24" height="19" rx="4.5" fill="url(#brassLock)" stroke="#fef08a" stroke-width="0.75"/>
-                <line x1="14" y1="21" x2="34" y2="21" stroke="#fef9c3" stroke-width="0.75" opacity="0.8"/>
-                
-                <!-- Keyhole -->
-                <circle cx="24" cy="27" r="2.4" fill="#451a03"/>
-                <polygon points="22.8,27 25.2,27 25.8,32.5 22.2,32.5" fill="#451a03"/>
-                <circle cx="24" cy="27" r="2.8" fill="none" stroke="#fde047" stroke-width="0.5" opacity="0.6"/>
-              </g>
-
-              <!-- Top Glass Sheen -->
-              <path d="M 0 0 L 48 0 L 48 10 C 32 14 16 14 0 10 Z" fill="rgba(255,255,255,0.22)"/>
-            </svg>
+            <img src="/static/img/icons/dock-lock.png" class="dock-app-img" alt="Lock Desktop" draggable="false">
           </div>
           <span class="dock-tooltip">Lock Screen</span>
         </div>
