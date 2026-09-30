@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>HomeDock — Server Manager</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=blue_dashboard_v2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css?v=iqon_v1">
 </head>
 <body>
   <!-- Ambient macOS Sonoma / Sequoia Wallpaper Background -->
@@ -208,35 +210,70 @@
           <!-- 4 Core Desktop Metric Cards -->
           <div class="dashboard-grid">
             <!-- 1. Processor (CPU) Card -->
-            <div class="card">
+            <div class="card iqon-card">
               <div class="card-header">
-                <div class="card-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
-                  <span>Processor</span>
+                <div class="card-header-left">
+                  <div class="card-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+                  </div>
+                  <div class="card-header-titles">
+                    <span class="card-title-text">Processor</span>
+                    <span id="sensorCpuModelShort" class="card-subtitle-text">CPU Core Activity</span>
+                  </div>
                 </div>
                 <div class="card-header-badges">
+                  <span class="status-pill-optimal"><span class="status-dot"></span>Optimal</span>
                   <span id="cpuPowerBadge" class="card-badge badge-cpu-power" title="Current CPU Package Power">-- W</span>
                   <span id="cpuTempDetail" class="card-badge">--°C</span>
                 </div>
               </div>
-              <div class="metric-highlight">
-                <span id="cpuPercentVal" class="metric-big">0%</span>
-                <span class="metric-sub">utilization</span>
+
+              <!-- Hero Radial Speedometer Gauge -->
+              <div class="iqon-gauge-container">
+                <div class="iqon-gauge-wrap">
+                  <svg class="iqon-gauge-svg" viewBox="0 0 160 130">
+                    <defs>
+                      <linearGradient id="cpuGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8"/>
+                        <stop offset="100%" stop-color="#3b82f6"/>
+                      </linearGradient>
+                    </defs>
+                    <path class="gauge-bg-ticks" d="M 31 116.1 A 64 64 0 1 1 129 116.1"/>
+                    <path class="gauge-bg-track" d="M 38.6 109.7 A 54 54 0 1 1 121.4 109.7"/>
+                    <path id="cpuGaugeArc" class="gauge-fill-arc cpu-arc" d="M 38.6 109.7 A 54 54 0 1 1 121.4 109.7"/>
+                  </svg>
+                  <div class="iqon-gauge-readout">
+                    <span id="cpuPercentVal" class="metric-big">0%</span>
+                    <span class="metric-sub">UTILIZATION</span>
+                  </div>
+                  <div class="gauge-glow-ambient gauge-glow-blue"></div>
+                </div>
               </div>
+
+              <!-- Progress Bar -->
               <div class="progress-bar-bg">
                 <div id="cpuBarFill" class="progress-bar-fill" style="width: 0%;"></div>
               </div>
+
+              <!-- Live History Chart -->
               <div class="chart-container">
                 <canvas id="cpuHistoryChart"></canvas>
               </div>
-              <div id="cpuCoresList" class="core-mini-container" title="Per-core CPU utilization"></div>
+
+              <!-- Per-Core Utilization Mini Bars -->
+              <div class="core-mini-wrapper">
+                <div class="detail-label" style="margin-bottom: 0.35rem;">Core Threads</div>
+                <div id="cpuCoresList" class="core-mini-container" title="Per-core CPU utilization"></div>
+              </div>
+
+              <!-- Spec Details Grid -->
               <div class="metric-grid-details metric-grid-3">
                 <div class="detail-item">
-                  <span class="detail-label">Frequency</span>
+                  <span class="detail-label">Clock Speed</span>
                   <span id="cpuFreqDetail" class="detail-val">-- MHz</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Power (Wattage)</span>
+                  <span class="detail-label">Package Power</span>
                   <span id="cpuPowerDetail" class="detail-val" style="color: #f59e0b;">-- W</span>
                 </div>
                 <div class="detail-item">
@@ -247,96 +284,160 @@
             </div>
 
             <!-- 2. Memory (RAM) Card -->
-            <div class="card">
+            <div class="card iqon-card">
               <div class="card-header">
-                <div class="card-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M6 5v3"/><path d="M10 5v3"/><path d="M14 5v3"/><path d="M18 5v3"/><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
-                  <span>Memory</span>
+                <div class="card-header-left">
+                  <div class="card-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M6 5v3"/><path d="M10 5v3"/><path d="M14 5v3"/><path d="M18 5v3"/><rect x="2" y="8" width="20" height="8" rx="2"/></svg>
+                  </div>
+                  <div class="card-header-titles">
+                    <span class="card-title-text">Memory</span>
+                    <span class="card-subtitle-text">System RAM</span>
+                  </div>
                 </div>
-                <span id="memAvailDetail" class="card-badge">-- Avail</span>
+                <div class="card-header-badges">
+                  <span class="status-pill-optimal"><span class="status-dot"></span>Optimal</span>
+                  <span id="memAvailDetail" class="card-badge">-- Avail</span>
+                </div>
               </div>
-              <div class="metric-highlight">
-                <span id="memPercentVal" class="metric-big">0%</span>
-                <span class="metric-sub">used</span>
+
+              <!-- Hero Radial Speedometer Gauge -->
+              <div class="iqon-gauge-container">
+                <div class="iqon-gauge-wrap">
+                  <svg class="iqon-gauge-svg" viewBox="0 0 160 130">
+                    <defs>
+                      <linearGradient id="memGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#38bdf8"/>
+                        <stop offset="100%" stop-color="#34d399"/>
+                      </linearGradient>
+                    </defs>
+                    <path class="gauge-bg-ticks" d="M 31 116.1 A 64 64 0 1 1 129 116.1"/>
+                    <path class="gauge-bg-track" d="M 38.6 109.7 A 54 54 0 1 1 121.4 109.7"/>
+                    <path id="memGaugeArc" class="gauge-fill-arc mem-arc" d="M 38.6 109.7 A 54 54 0 1 1 121.4 109.7"/>
+                  </svg>
+                  <div class="iqon-gauge-readout">
+                    <span id="memPercentVal" class="metric-big">0%</span>
+                    <span class="metric-sub">UTILIZATION</span>
+                  </div>
+                  <div class="gauge-glow-ambient gauge-glow-cyan"></div>
+                </div>
               </div>
+
+              <!-- Progress Bar -->
               <div class="progress-bar-bg">
-                <div id="memBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
+                <div id="memBarFill" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #38bdf8, #34d399);"></div>
               </div>
+
+              <!-- Live History Chart -->
               <div class="chart-container">
                 <canvas id="memHistoryChart"></canvas>
               </div>
+
+              <!-- Spec Details Grid -->
               <div class="metric-grid-details">
                 <div class="detail-item">
                   <span class="detail-label">Used / Total</span>
                   <span id="memUsedDetail" class="detail-val">--</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">Swap</span>
+                  <span class="detail-label">Swap File</span>
                   <span id="memSwapDetail" class="detail-val">--</span>
                 </div>
               </div>
             </div>
 
             <!-- 3. Network Throughput Card -->
-            <div class="card">
+            <div class="card iqon-card">
               <div class="card-header">
-                <div class="card-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-                  <span>Network Throughput</span>
+                <div class="card-header-left">
+                  <div class="card-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                  </div>
+                  <div class="card-header-titles">
+                    <span class="card-title-text">Network</span>
+                    <span class="card-subtitle-text">Throughput & Bandwidth</span>
+                  </div>
                 </div>
-                <span id="netTotalSummary" class="card-badge" style="font-family: var(--font-mono); font-size: 0.72rem;">↓ 0 B  ↑ 0 B</span>
-              </div>
-              
-              <!-- Download Meter -->
-              <div style="margin-bottom: 0.4rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
-                  <span><strong style="color: var(--color-success);">↓ DL</strong> <span id="netDownloadSpeed" style="font-weight: 600; color: var(--color-success);">0 B/s</span></span>
-                  <span id="netTotalRx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
-                </div>
-                <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0;">
-                  <div id="netDownloadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
+                <div class="card-header-badges">
+                  <span class="status-pill-optimal"><span class="status-dot"></span>Connected</span>
+                  <span id="netTotalSummary" class="card-badge" style="font-family: var(--font-mono); font-size: 0.72rem;">↓ 0 B  ↑ 0 B</span>
                 </div>
               </div>
 
-              <!-- Upload Meter -->
-              <div style="margin-bottom: 0.65rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
-                  <span><strong style="color: var(--color-warning);">↑ UL</strong> <span id="netUploadSpeed" style="font-weight: 600; color: var(--color-warning);">0 B/s</span></span>
-                  <span id="netTotalTx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
+              <!-- IQON Download Meter Block -->
+              <div class="iqon-net-meter">
+                <div class="iqon-net-meter-header">
+                  <div class="iqon-net-label" style="color: #38bdf8;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>Download</span>
+                  </div>
+                  <span id="netTotalRx" class="iqon-net-total">Σ 0 B</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem;">
+                  <span id="netDownloadSpeed" class="iqon-net-speed" style="color: #38bdf8;">0 B/s</span>
+                  <span class="detail-label">Peak Metered</span>
                 </div>
                 <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0;">
-                  <div id="netUploadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-warning);"></div>
+                  <div id="netDownloadBarFill" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #38bdf8, #60a5fa);"></div>
                 </div>
               </div>
 
+              <!-- IQON Upload Meter Block -->
+              <div class="iqon-net-meter">
+                <div class="iqon-net-meter-header">
+                  <div class="iqon-net-label" style="color: #fb923c;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="17 14 12 9 7 14"/><line x1="12" y1="21" x2="12" y2="9"/></svg>
+                    <span>Upload</span>
+                  </div>
+                  <span id="netTotalTx" class="iqon-net-total">Σ 0 B</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.4rem;">
+                  <span id="netUploadSpeed" class="iqon-net-speed" style="color: #fb923c;">0 B/s</span>
+                  <span class="detail-label">Outbound</span>
+                </div>
+                <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0;">
+                  <div id="netUploadBarFill" class="progress-bar-fill" style="width: 0%; background: linear-gradient(90deg, #f59e0b, #fb923c);"></div>
+                </div>
+              </div>
+
+              <!-- Live Throughput Chart -->
               <div class="chart-container">
                 <canvas id="netHistoryChart"></canvas>
               </div>
+
+              <!-- Interface Pills -->
               <div id="netInterfacesList" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.75rem;"></div>
             </div>
 
             <!-- 4. Sensors & Hardware Card -->
-            <div class="card">
+            <div class="card iqon-card">
               <div class="card-header">
-                <div class="card-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  <span>Hardware & Sensors</span>
+                <div class="card-header-left">
+                  <div class="card-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  </div>
+                  <div class="card-header-titles">
+                    <span class="card-title-text">Hardware & Sensors</span>
+                    <span class="card-subtitle-text">Linux hwmon Telemetry</span>
+                  </div>
                 </div>
-                <span id="fanStatusVal" class="card-badge" style="background: var(--color-info-alpha); color: var(--color-info); display: inline-flex; align-items: center; gap: 0.35rem;">
-                  <svg id="fanIconSvg" class="fan-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 9a4 4 0 0 1 4-4 4 4 0 0 1-1 3.8"/><path d="M15 12a4 4 0 0 1 4 4 4 4 0 0 1-3.8-1"/><path d="M12 15a4 4 0 0 1-4 4 4 4 0 0 1 1-3.8"/><path d="M9 12a4 4 0 0 1-4-4 4 4 0 0 1 3.8 1"/></svg>
-                  <span id="fanRpmText">Checking Fan</span>
-                </span>
+                <div class="card-header-badges">
+                  <span id="fanStatusVal" class="card-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 0.35rem; border-color: rgba(56, 189, 248, 0.25);">
+                    <svg id="fanIconSvg" class="fan-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 9a4 4 0 0 1 4-4 4 4 0 0 1-1 3.8"/><path d="M15 12a4 4 0 0 1 4 4 4 4 0 0 1-3.8-1"/><path d="M12 15a4 4 0 0 1-4 4 4 4 0 0 1 1-3.8"/><path d="M9 12a4 4 0 0 1-4-4 4 4 0 0 1 3.8 1"/></svg>
+                    <span id="fanRpmText">Checking Fan</span>
+                  </span>
+                </div>
               </div>
 
-              <!-- Hardware Identity -->
-              <div style="margin-bottom: 0.75rem;">
-                <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.15rem;" id="sensorCpuModel">Intel Core i7-8550U</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">Hardware Monitored via Linux hwmon</div>
+              <!-- Hardware Model Display -->
+              <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; padding: 0.75rem 0.9rem; margin-bottom: 0.85rem;">
+                <div class="detail-label" style="margin-bottom: 0.2rem;">System Host Processor</div>
+                <div style="font-weight: 700; font-size: 0.95rem; color: #ffffff;" id="sensorCpuModel">Intel Core i7-8550U</div>
               </div>
 
               <!-- Thermals & Motherboard -->
-              <div style="margin-bottom: 0.65rem;">
-                <div class="detail-label" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Thermals & Motherboard</div>
+              <div style="margin-bottom: 0.75rem;">
+                <div class="detail-label" style="margin-bottom: 0.35rem;">Thermals & Motherboard</div>
                 <div class="sensor-chips-row" id="sensorThermalChips">
                   <span class="sensor-chip" id="sensorChipNvme">NVMe: <strong id="nvmeTempDetail">--°C</strong></span>
                   <span class="sensor-chip" id="sensorChipPch">PCH: <strong id="pchTempDetail">--°C</strong></span>
@@ -346,8 +447,8 @@
               </div>
 
               <!-- Per-Core Temperatures -->
-              <div style="margin-bottom: 0.65rem;">
-                <div class="detail-label" style="font-size: 0.72rem; margin-bottom: 0.3rem;">Core Temperatures</div>
+              <div style="margin-bottom: 0.75rem;">
+                <div class="detail-label" style="margin-bottom: 0.35rem;">Core Temperatures</div>
                 <div class="sensor-chips-row" id="sensorCoreTemps">
                   <span class="sensor-chip">Core 0: <strong>--°C</strong></span>
                   <span class="sensor-chip">Core 1: <strong>--°C</strong></span>
@@ -357,7 +458,7 @@
               </div>
 
               <!-- Power & System Uptime -->
-              <div class="metric-grid-details" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+              <div class="metric-grid-details" style="margin-top: auto; padding-top: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.06);">
                 <div class="detail-item">
                   <span class="detail-label">Power / Battery</span>
                   <span id="batteryDetail" class="detail-val">--</span>
