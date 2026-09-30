@@ -1,5 +1,6 @@
 /**
  * HomeDock Main SPA Application Router & State Orchestrator.
+ * Powered by macOS / UmbrelOS Desktop Architecture.
  */
 
 import { api, showToast } from "./api.js";
@@ -10,6 +11,7 @@ import { fileManagerComponent } from "./components/files.js";
 import { downloadManagerComponent } from "./components/downloads.js";
 import { settingsComponent } from "./components/settings.js";
 import { folderBrowser } from "./components/folder_browser.js";
+import { windowManager } from "./components/window_manager.js";
 
 class App {
   constructor() {
@@ -19,6 +21,7 @@ class App {
   async init() {
     this.setupTheme();
     this.setupEventListeners();
+    windowManager.init();
     folderBrowser.init();
     await this.checkAuth();
   }
@@ -55,21 +58,17 @@ class App {
   }
 
   setupEventListeners() {
-    // Navigation items
+    // Navigation / Dock items
     const navItems = document.querySelectorAll(".nav-item[data-view]");
     navItems.forEach(item => {
       item.addEventListener("click", (e) => {
         e.preventDefault();
         const view = item.dataset.view;
         this.switchView(view);
-
-        // Close mobile drawer if open
-        const sidebar = document.getElementById("appSidebar");
-        if (sidebar) sidebar.classList.remove("open");
       });
     });
 
-    // Mobile nav toggle
+    // Mobile nav toggle fallback
     const mobileToggle = document.getElementById("mobileNavToggle");
     const sidebar = document.getElementById("appSidebar");
     if (mobileToggle && sidebar) {
@@ -78,12 +77,12 @@ class App {
       });
     }
 
-    // Login Form Submit
+    // Login Form Submit (macOS Lock Screen)
     const loginForm = document.getElementById("loginForm");
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const user = document.getElementById("loginUsername").value.trim();
+        const user = document.getElementById("loginUsername")?.value.trim() || "admin";
         const pass = document.getElementById("loginPassword").value;
         const errorEl = document.getElementById("loginErrorMsg");
 
@@ -98,7 +97,49 @@ class App {
             errorEl.textContent = err.message;
             errorEl.style.display = "block";
           }
+          const lockCard = document.querySelector(".macos-lock-card");
+          if (lockCard) {
+            lockCard.classList.remove("shake");
+            void lockCard.offsetWidth; // Reflow for animation trigger
+            lockCard.classList.add("shake");
+          }
         }
+      });
+    }
+
+    // Switch User toggle button on Lock Screen
+    const toggleUserBtn = document.getElementById("btnToggleUsername");
+    const userGroup = document.getElementById("loginUsernameGroup");
+    if (toggleUserBtn && userGroup) {
+      toggleUserBtn.addEventListener("click", () => {
+        const isHidden = userGroup.style.display === "none";
+        userGroup.style.display = isHidden ? "block" : "none";
+        toggleUserBtn.textContent = isHidden ? "Cancel" : "Switch User";
+        if (isHidden) {
+          document.getElementById("loginUsername")?.focus();
+        }
+      });
+    }
+
+    // Power buttons on lock screen
+    const sleepBtn = document.getElementById("lockSleepBtn");
+    if (sleepBtn) {
+      sleepBtn.addEventListener("click", () => {
+        showToast("Display sleep mode activated", "info");
+      });
+    }
+
+    const restartBtn = document.getElementById("lockRestartBtn");
+    if (restartBtn) {
+      restartBtn.addEventListener("click", () => {
+        showToast("HomeDock server is active and running", "info");
+      });
+    }
+
+    const shutdownBtn = document.getElementById("lockShutdownBtn");
+    if (shutdownBtn) {
+      shutdownBtn.addEventListener("click", () => {
+        showToast("Server shutdown requires administrator console access", "info");
       });
     }
 
@@ -123,15 +164,23 @@ class App {
       const data = e.detail;
       if (data.metrics) {
         headerComponent.update(data.metrics);
-        if (this.currentView === "dashboard") {
-          dashboardComponent.updateMetrics(data.metrics);
-        }
+        dashboardComponent.updateMetrics(data.metrics);
       }
-      if (data.storage && this.currentView === "dashboard") {
+      if (data.storage) {
         dashboardComponent.updateStorage(data.storage);
       }
-      if (data.download_stats && this.currentView === "downloads") {
+      if (data.download_stats) {
         downloadManagerComponent.updateLive(data.download_stats, data.downloads);
+        const badge = document.getElementById("dockDownloadBadge");
+        if (badge) {
+          const active = data.download_stats.numActive || 0;
+          if (active > 0) {
+            badge.textContent = active;
+            badge.style.display = "inline-flex";
+          } else {
+            badge.style.display = "none";
+          }
+        }
       }
     });
 
@@ -191,51 +240,34 @@ class App {
     document.getElementById("authContainer").style.display = "none";
     document.getElementById("appContainer").style.display = "flex";
 
-    // Update user info in sidebar
+    // Update user info across navigation, menubar & lock screen
     const nameEl = document.getElementById("sidebarUserName");
     const roleEl = document.getElementById("sidebarUserRole");
     const avatarEl = document.getElementById("sidebarUserAvatar");
+    const lockNameEl = document.getElementById("lockUserName");
+    const lockInitialEl = document.getElementById("lockUserAvatarInitial");
+    const menuLogoutUname = document.getElementById("menuLogoutUsername");
 
     if (nameEl) nameEl.textContent = user.username;
     if (roleEl) roleEl.textContent = user.role;
     if (avatarEl) avatarEl.textContent = user.username.charAt(0).toUpperCase();
+    if (lockNameEl) lockNameEl.textContent = user.username;
+    if (lockInitialEl) lockInitialEl.textContent = user.username.charAt(0).toUpperCase();
+    if (menuLogoutUname) menuLogoutUname.textContent = user.username;
 
-    // Toggle admin-only navigation
-    const adminNavs = document.querySelectorAll(".admin-nav-item");
-    adminNavs.forEach(el => {
-      el.style.display = user.role === "admin" ? "flex" : "none";
+    // Toggle admin-only sections
+    const adminSections = document.querySelectorAll(".admin-only-section");
+    adminSections.forEach(el => {
+      el.style.display = user.role === "admin" ? "block" : "none";
     });
   }
 
   switchView(viewName) {
     this.currentView = viewName;
-
-    // Update Nav
-    document.querySelectorAll(".nav-item[data-view]").forEach(item => {
-      item.classList.toggle("active", item.dataset.view === viewName);
-    });
-
-    // Update View DOM
-    document.querySelectorAll(".view-section").forEach(sec => {
-      sec.classList.remove("active");
-    });
-
-    const activeView = document.getElementById(`${viewName}View`);
-    if (activeView) activeView.classList.add("active");
-
-    // Initialize/Refresh component
     if (viewName === "dashboard") {
-      dashboardComponent.init();
-      api.getStorageDevices().then(d => dashboardComponent.updateStorage(d));
-    } else if (viewName === "files") {
-      fileManagerComponent.init();
-    } else if (viewName === "downloads") {
-      downloadManagerComponent.init();
-      downloadManagerComponent.fetchDefaultDir();
-      downloadManagerComponent.refresh();
-    } else if (viewName === "settings") {
-      settingsComponent.init();
-      settingsComponent.refresh();
+      windowManager.showDesktop();
+    } else {
+      windowManager.openWindow(viewName);
     }
   }
 }
