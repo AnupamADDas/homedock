@@ -162,9 +162,9 @@ input, textarea, select, [contenteditable="true"] {
     linear-gradient(130deg, 
       transparent 0%, 
       transparent 36%, 
-      rgba(147, 197, 253, 0.22) 47%, 
-      rgba(191, 219, 254, 0.38) 50%, 
-      rgba(59, 130, 246, 0.24) 53%, 
+      rgba(147, 197, 253, 0.13) 47%, 
+      rgba(191, 219, 254, 0.22) 50%, 
+      rgba(59, 130, 246, 0.14) 53%, 
       transparent 65%, 
       transparent 100%
     ),
@@ -172,16 +172,18 @@ input, textarea, select, [contenteditable="true"] {
     linear-gradient(115deg, 
       transparent 0%, 
       transparent 58%, 
-      rgba(59, 130, 246, 0.16) 68%, 
-      rgba(147, 197, 253, 0.24) 72%, 
+      rgba(59, 130, 246, 0.08) 68%, 
+      rgba(147, 197, 253, 0.12) 72%, 
       transparent 82%
     ),
-    /* Radiant Top-Left Azure Light Bloom */
-    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(147, 197, 253, 0.42) 0%, rgba(59, 130, 246, 0.18) 35%, transparent 62%),
-    /* Center-Right Electric Cobalt Glow */
-    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(37, 99, 235, 0.35) 0%, transparent 65%),
-    /* Royal Cobalt & Sapphire Gradient from Pinterest pin (samples: #4b7bd0, #3d61b7, #3a5dae, #27409a, #243a8f) */
-    linear-gradient(140deg, #4b7bd0 0%, #3d61b7 20%, #3a5dae 42%, #27409a 68%, #243a8f 85%, #182760 100%);
+    /* Soft Top-Left Azure Light Bloom */
+    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(96, 165, 250, 0.20) 0%, rgba(37, 99, 235, 0.08) 35%, transparent 62%),
+    /* Center-Right Deep Cobalt Glow */
+    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(29, 78, 216, 0.18) 0%, transparent 65%),
+    /* Ambient Dark Vignette */
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(2, 5, 14, 0.55) 100%),
+    /* Deep Royal Cobalt & Midnight Sapphire Gradient */
+    linear-gradient(140deg, #1e3a70 0%, #162c58 20%, #101f42 42%, #0b152e 68%, #070d1e 85%, #030612 100%);
   z-index: 0;
   pointer-events: none;
   background-attachment: fixed;
@@ -213,15 +215,23 @@ input, textarea, select, [contenteditable="true"] {
     linear-gradient(130deg, 
       transparent 0%, 
       transparent 36%, 
-      rgba(147, 197, 253, 0.22) 47%, 
-      rgba(191, 219, 254, 0.38) 50%, 
-      rgba(59, 130, 246, 0.24) 53%, 
+      rgba(147, 197, 253, 0.13) 47%, 
+      rgba(191, 219, 254, 0.22) 50%, 
+      rgba(59, 130, 246, 0.14) 53%, 
       transparent 65%, 
       transparent 100%
     ),
-    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(147, 197, 253, 0.42) 0%, rgba(59, 130, 246, 0.18) 35%, transparent 62%),
-    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(37, 99, 235, 0.35) 0%, transparent 65%),
-    linear-gradient(140deg, #4b7bd0 0%, #3d61b7 20%, #3a5dae 42%, #27409a 68%, #243a8f 85%, #182760 100%);
+    linear-gradient(115deg, 
+      transparent 0%, 
+      transparent 58%, 
+      rgba(59, 130, 246, 0.08) 68%, 
+      rgba(147, 197, 253, 0.12) 72%, 
+      transparent 82%
+    ),
+    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(96, 165, 250, 0.20) 0%, rgba(37, 99, 235, 0.08) 35%, transparent 62%),
+    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(29, 78, 216, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(2, 5, 14, 0.55) 100%),
+    linear-gradient(140deg, #1e3a70 0%, #162c58 20%, #101f42 42%, #0b152e 68%, #070d1e 85%, #030612 100%);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
 }
