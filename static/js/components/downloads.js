@@ -11,20 +11,20 @@ import { showConfirmDialog } from "./confirm_dialog.js";
 
 function getFileIcon(name = "", isTorrent = false) {
   if (isTorrent) {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#52e58c" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`;
   }
   const ext = (name.split(".").pop() || "").toLowerCase();
   if (["mp4", "mkv", "avi", "mov", "wmv", "flv", "webm"].includes(ext)) {
     return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>`;
   }
   if (["zip", "rar", "7z", "tar", "gz", "bz2", "xz"].includes(ext)) {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
   }
   if (["mp3", "flac", "wav", "aac", "ogg", "m4a"].includes(ext)) {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>`;
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>`;
   }
   if (["iso", "img", "exe", "bin", "dmg", "apk", "deb", "AppImage"].includes(ext)) {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>`;
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>`;
   }
   return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`;
 }
@@ -752,18 +752,18 @@ export class DownloadManagerComponent {
       let speedOrStatusHtml = "";
       if (isActive) {
         speedOrStatusHtml = `
-          ${item.download_speed > 0 ? `<span style="color: #10b981; font-weight: 600;">⬇ ${formatSpeed(item.download_speed)}</span>` : '<span style="color: var(--text-muted);">⬇ 0 B/s</span>'}
-          ${item.upload_speed > 0 ? `<span style="color: #60a5fa;">⬆ ${formatSpeed(item.upload_speed)}</span>` : ''}
+          ${item.download_speed > 0 ? `<span style="color: var(--color-success); font-weight: 600;">⬇ ${formatSpeed(item.download_speed)}</span>` : '<span style="color: var(--text-muted);">⬇ 0 B/s</span>'}
+          ${item.upload_speed > 0 ? `<span style="color: var(--color-warning);">⬆ ${formatSpeed(item.upload_speed)}</span>` : ''}
           <span style="color: var(--text-muted);">ETA: ${item.eta_seconds ? formatTime(item.eta_seconds) : "--"}</span>
         `;
       } else if (isPaused) {
-        speedOrStatusHtml = `<span style="color: #fbbf24; font-weight: 600;">⏸ Paused</span> <span style="color: var(--text-muted); margin-left: 0.4rem;">ETA: --</span>`;
+        speedOrStatusHtml = `<span style="color: var(--color-warning); font-weight: 600;">⏸ Paused</span> <span style="color: var(--text-muted); margin-left: 0.4rem;">ETA: --</span>`;
       } else if (isComplete) {
-        speedOrStatusHtml = `<span style="color: #10b981; font-weight: 600;">✓ Complete</span>`;
+        speedOrStatusHtml = `<span style="color: var(--color-success); font-weight: 600;">✓ Complete</span>`;
       } else if (isWaiting) {
-        speedOrStatusHtml = `<span style="color: #60a5fa; font-weight: 600;">Waiting</span>`;
+        speedOrStatusHtml = `<span style="color: var(--color-info); font-weight: 600;">Waiting</span>`;
       } else if (isError) {
-        speedOrStatusHtml = `<span style="color: #f43f5e; font-weight: 600;">Failed</span>`;
+        speedOrStatusHtml = `<span style="color: var(--color-danger); font-weight: 600;">Failed</span>`;
       }
 
       let actionsHtml = "";
@@ -790,7 +790,7 @@ export class DownloadManagerComponent {
           ` : ""}
           ${isPaused ? `
             <button class="btn btn-secondary btn-icon btn-sm btn-unpause-dl" data-gid="${item.gid}" title="Resume">
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#10b981" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--color-success)" stroke-width="2" fill="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             </button>
           ` : ""}
           ${isError ? `
@@ -799,7 +799,7 @@ export class DownloadManagerComponent {
             </button>
           ` : ""}
           <button class="btn btn-secondary btn-icon btn-sm btn-limit-dl ${taskLimit > 0 ? 'active' : ''}" data-gid="${item.gid}" data-limit="${taskLimit}" title="${limitFormatted ? `Speed Limit: ${limitFormatted} (Click to change)` : 'Set Speed Limit for this task'}">
-            <svg viewBox="0 0 24 24" width="14" height="14" stroke="#f59e0b" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--color-warning)" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </button>
           ${(isActive || isPaused || isWaiting) ? `
             <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
@@ -831,9 +831,9 @@ export class DownloadManagerComponent {
                     📁 ${item.dir || '--'}
                   </span>
                   ${item.channel ? `<span style="color: var(--text-secondary); font-weight: 500;">• 👤 ${item.channel}</span>` : ''}
-                  ${item.connections > 0 ? `<span>• 🔗 ${item.connections} conns</span>` : (isPaused ? '<span style="color: #fbbf24;">• ⏸ Paused</span>' : '')}
+                  ${item.connections > 0 ? `<span>• 🔗 ${item.connections} conns</span>` : (isPaused ? '<span style="color: var(--color-warning);">• ⏸ Paused</span>' : '')}
                   ${item.num_seeders > 0 ? `<span>• ⬆ ${item.num_seeders} seeds</span>` : ''}
-                  ${limitFormatted ? `<span style="color: #fbbf24; font-weight: 500;">• ⚡ Max ${limitFormatted}</span>` : ''}
+                  ${limitFormatted ? `<span style="color: var(--color-warning); font-weight: 500;">• ⚡ Max ${limitFormatted}</span>` : ''}
                 </div>
               </div>
             </div>
@@ -857,7 +857,7 @@ export class DownloadManagerComponent {
             </div>
             <div class="download-meta-right">
               ${speedOrStatusHtml}
-              ${(isActive && limitFormatted) ? `<span style="color: #f59e0b; font-size: 0.73rem; font-weight: 500;">(capped at ${limitFormatted})</span>` : ""}
+              ${(isActive && limitFormatted) ? `<span style="color: var(--color-warning); font-size: 0.73rem; font-weight: 500;">(capped at ${limitFormatted})</span>` : ""}
             </div>
           </div>
 
