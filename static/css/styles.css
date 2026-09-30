@@ -1231,17 +1231,18 @@ body.window-dragging .window-titlebar {
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
-  height: var(--dock-height);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-dock);
-  padding: 0 10px;
+  height: 72px;
+  background: rgba(30, 32, 40, 0.68);
+  backdrop-filter: blur(35px) saturate(210%);
+  -webkit-backdrop-filter: blur(35px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 22px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: var(--glass-shadow);
+  gap: 10px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   z-index: 1000;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1252,30 +1253,47 @@ body.window-dragging .window-titlebar {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 54px;
+  width: 52px;
+  height: 58px;
   cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .dock-item:hover {
-  transform: translateY(-8px) scale(1.16);
+  transform: translateY(-8px) scale(1.15);
+}
+
+.dock-item:active {
+  transform: translateY(-4px) scale(1.06);
 }
 
 .dock-icon {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   position: relative;
 }
 
-.dock-icon-dashboard {
-  background: linear-gradient(135deg, #1e293b, #0f172a);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+.dock-icon svg {
+  width: 48px;
+  height: 48px;
+  display: block;
+  border-radius: 11px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dock-item:hover .dock-icon svg {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.06);
+}
+
+.dock-item:active .dock-icon svg {
+  transform: scale(0.96);
+  filter: brightness(0.94);
 }
 
 .dock-badge {
@@ -1294,6 +1312,8 @@ body.window-dragging .window-titlebar {
   align-items: center;
   justify-content: center;
   border: 2px solid #1a1b20;
+  box-shadow: 0 2px 6px rgba(255, 69, 58, 0.5);
+  z-index: 5;
 }
 
 .dock-dot {
@@ -1301,7 +1321,7 @@ body.window-dragging .window-titlebar {
   height: 4px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.85);
-  margin-top: 3px;
+  margin-top: 4px;
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease;
   box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
