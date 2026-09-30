@@ -5,9 +5,9 @@
    ========================================================================== */
 
 :root {
-  /* Modern IQON Typography Stack */
-  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  /* Modern Typography Stack */
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   
   /* Pinterest Blue Digital Dashboard (Midnight Sapphire Palette) */
   --bg-primary: #060d1a;
@@ -713,25 +713,23 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .desktop-greeting-title {
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: #ffffff;
-  line-height: 1.2;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .desktop-host-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.4rem 1rem;
-  background: rgba(8, 14, 28, 0.75);
-  border: 1px solid rgba(147, 197, 253, 0.15);
+  padding: 0.3rem 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-pill);
-  font-size: 0.82rem;
-  color: #94a3b8;
-  backdrop-filter: blur(16px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  backdrop-filter: blur(12px);
 }
 
 /* ==========================================================================
@@ -752,15 +750,9 @@ input, textarea, select, [contenteditable="true"] {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
   margin-bottom: 2rem;
-}
-
-@media (max-width: 960px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .card {
@@ -774,79 +766,17 @@ input, textarea, select, [contenteditable="true"] {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card.iqon-card {
-  position: relative;
-  background: rgba(8, 14, 28, 0.78);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(147, 197, 253, 0.12);
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  padding: 1.5rem 1.6rem;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.card.iqon-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(147, 197, 253, 0.25);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+.card:hover {
+  border-color: var(--glass-border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1.15rem;
-}
-
-.card-header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.card-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #60a5fa;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.card-icon-box svg {
-  width: 20px;
-  height: 20px;
-}
-
-.card-header-titles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.card-title-text {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.card-subtitle-text {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #8292ab;
-  line-height: 1.2;
+  margin-bottom: 1rem;
 }
 
 .card-title {
@@ -867,31 +797,7 @@ input, textarea, select, [contenteditable="true"] {
 .card-header-badges {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* IQON Status Pill */
-.status-pill-optimal {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #34d399;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 9999px;
-  padding: 3px 9px;
-  letter-spacing: 0.02em;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #34d399;
-  box-shadow: 0 0 8px rgba(52, 211, 153, 0.8);
+  gap: 0.45rem;
 }
 
 .card-badge {
@@ -909,117 +815,6 @@ input, textarea, select, [contenteditable="true"] {
   color: #f59e0b;
   border-color: rgba(245, 158, 11, 0.3);
   font-weight: 600;
-}
-
-/* ==========================================================================
-   IQON Radial Speedometer Gauge
-   ========================================================================== */
-
-.iqon-gauge-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 0.25rem 0 1rem 0;
-  position: relative;
-}
-
-.iqon-gauge-wrap {
-  position: relative;
-  width: 170px;
-  height: 125px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.iqon-gauge-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.gauge-bg-ticks {
-  stroke: rgba(255, 255, 255, 0.15);
-  stroke-width: 5;
-  stroke-dasharray: 2 7;
-  fill: none;
-}
-
-.gauge-bg-track {
-  stroke: rgba(255, 255, 255, 0.08);
-  stroke-width: 6;
-  stroke-linecap: round;
-  fill: none;
-}
-
-.gauge-fill-arc {
-  stroke-width: 6;
-  stroke-linecap: round;
-  fill: none;
-  stroke-dasharray: 245.04;
-  stroke-dashoffset: 245.04;
-  transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gauge-fill-arc.cpu-arc {
-  stroke: url(#cpuGaugeGrad);
-  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
-}
-
-.gauge-fill-arc.mem-arc {
-  stroke: url(#memGaugeGrad);
-  filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.6));
-}
-
-.iqon-gauge-readout {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -32%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  text-align: center;
-}
-
-.iqon-gauge-readout .metric-big {
-  font-size: 2.3rem;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  color: #ffffff;
-  line-height: 1;
-}
-
-.iqon-gauge-readout .metric-sub {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: #8292ab;
-  text-transform: uppercase;
-  margin-top: 4px;
-}
-
-.gauge-glow-ambient {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 140px;
-  height: 55px;
-  filter: blur(14px);
-  pointer-events: none;
-  border-radius: 50%;
-  opacity: 0.6;
-}
-
-.gauge-glow-blue {
-  background: radial-gradient(ellipse at 50% 100%, rgba(56, 189, 248, 0.35) 0%, rgba(37, 99, 235, 0.12) 55%, transparent 75%);
-}
-
-.gauge-glow-cyan {
-  background: radial-gradient(ellipse at 50% 100%, rgba(52, 211, 153, 0.35) 0%, rgba(14, 165, 233, 0.12) 55%, transparent 75%);
 }
 
 .metric-highlight {
@@ -1044,7 +839,7 @@ input, textarea, select, [contenteditable="true"] {
 
 .progress-bar-bg {
   width: 100%;
-  height: 6px;
+  height: 7px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-pill);
   overflow: hidden;
@@ -1053,21 +848,16 @@ input, textarea, select, [contenteditable="true"] {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #3b82f6);
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
   border-radius: var(--radius-pill);
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chart-container {
   width: 100%;
-  height: 68px;
+  height: 60px;
   margin-bottom: 0.85rem;
   position: relative;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  padding: 4px 6px;
-  overflow: hidden;
 }
 
 .chart-container canvas {
@@ -1076,19 +866,15 @@ input, textarea, select, [contenteditable="true"] {
   display: block;
 }
 
-.core-mini-wrapper {
-  margin-bottom: 0.85rem;
-}
-
 .core-mini-container {
   display: flex;
   gap: 3px;
   height: 24px;
   align-items: flex-end;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-xs);
-  padding: 3px 5px;
+  padding: 2px 4px;
+  margin-bottom: 0.85rem;
 }
 
 .core-mini-item {
@@ -1100,7 +886,7 @@ input, textarea, select, [contenteditable="true"] {
 
 .core-mini-bar {
   width: 100%;
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+  background: var(--accent-primary);
   border-radius: 2px;
   min-height: 2px;
   transition: height 0.2s ease;
@@ -1109,10 +895,7 @@ input, textarea, select, [contenteditable="true"] {
 .metric-grid-details {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin-top: auto;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 0.65rem;
 }
 
 .metric-grid-3 {
@@ -1122,105 +905,56 @@ input, textarea, select, [contenteditable="true"] {
 .detail-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
 .detail-label {
-  font-size: 0.68rem;
-  color: #8292ab;
+  font-size: 0.72rem;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-weight: 500;
 }
 
 .detail-val {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: var(--font-mono);
 }
-
-/* ==========================================================================
-   IQON Network Telemetry Blocks
-   ========================================================================== */
-
-.iqon-net-meter {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 0.75rem 0.9rem;
-  margin-bottom: 0.75rem;
-}
-
-.iqon-net-meter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
-
-.iqon-net-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.iqon-net-speed {
-  font-size: 1.15rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-}
-
-.iqon-net-total {
-  font-size: 0.72rem;
-  font-family: var(--font-mono);
-  color: #8292ab;
-}
-
-/* ==========================================================================
-   IQON Hardware & Sensors
-   ========================================================================== */
 
 .sensor-chips-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
 .sensor-chip {
-  font-size: 0.75rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  font-size: 0.72rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--text-secondary);
 }
 
 .sensor-chip strong {
-  color: #ffffff;
+  color: var(--text-primary);
   font-family: var(--font-mono);
-  font-weight: 600;
 }
 
-.sensor-chip.temp-normal {
-  border-color: rgba(52, 211, 153, 0.35);
-  color: #34d399;
+.temp-normal {
+  border-color: rgba(82, 229, 140, 0.35);
+  color: #52e58c;
 }
 
-.sensor-chip.temp-warm {
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
+.temp-warm {
+  border-color: rgba(249, 115, 22, 0.35);
+  color: #f97316;
 }
 
-.sensor-chip.temp-hot {
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #f87171;
+.temp-hot {
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #f43f5e;
 }
 
 .fan-icon.idle {
@@ -1237,76 +971,71 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 /* ==========================================================================
-   Attached Storage & Disks Grid (IQON Style)
+   Attached Storage & Disks Grid
    ========================================================================== */
 
 .storage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
   margin-top: 1rem;
 }
 
 .storage-card {
-  background: rgba(8, 14, 28, 0.78);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(147, 197, 253, 0.12);
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
-  padding: 1.4rem;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transition: all 0.18s ease;
 }
 
 .storage-card:hover {
-  border-color: rgba(147, 197, 253, 0.25);
+  border-color: var(--glass-border-light);
   transform: translateY(-2px);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .storage-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.75rem;
 }
 
 .storage-drive-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: -0.02em;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .storage-drive-meta {
   font-size: 0.75rem;
-  color: #8292ab;
+  color: var(--text-muted);
   font-family: var(--font-mono);
-  margin-top: 2px;
 }
 
 .badge-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.22rem 0.6rem;
+  padding: 0.18rem 0.55rem;
   border-radius: var(--radius-xs);
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .badge-usb {
   background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
+  color: #0ea5e9;
   border: 1px solid rgba(14, 165, 233, 0.3);
 }
 
 .badge-nvme {
   background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
+  color: #a855f7;
   border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
@@ -1314,7 +1043,7 @@ input, textarea, select, [contenteditable="true"] {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-color);
   padding-top: 0.85rem;
 }
 

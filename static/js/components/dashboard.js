@@ -96,12 +96,6 @@ export class DashboardComponent {
 
         if (cpuPctEl) cpuPctEl.textContent = `${cpu.usage_percent}%`;
         if (cpuBarEl) cpuBarEl.style.width = `${cpu.usage_percent}%`;
-        const cpuGaugeArc = document.getElementById("cpuGaugeArc");
-        if (cpuGaugeArc) {
-          const arcLen = 245.04;
-          const pct = Math.min(Math.max(cpu.usage_percent || 0, 0), 100);
-          cpuGaugeArc.style.strokeDashoffset = `${arcLen * (1 - pct / 100)}`;
-        }
         if (cpuTempEl) cpuTempEl.textContent = cpu.temperature ? `${cpu.temperature}°C` : "Unavailable";
         if (cpuLoadEl) cpuLoadEl.textContent = cpu.load_average ? cpu.load_average.join(", ") : "--";
         if (cpuFreqEl) cpuFreqEl.textContent = cpu.frequency_mhz ? `${cpu.frequency_mhz} MHz` : "--";
@@ -154,12 +148,6 @@ export class DashboardComponent {
 
         if (memPctEl) memPctEl.textContent = `${mem.percent}%`;
         if (memBarEl) memBarEl.style.width = `${mem.percent}%`;
-        const memGaugeArc = document.getElementById("memGaugeArc");
-        if (memGaugeArc) {
-          const arcLen = 245.04;
-          const pct = Math.min(Math.max(mem.percent || 0, 0), 100);
-          memGaugeArc.style.strokeDashoffset = `${arcLen * (1 - pct / 100)}`;
-        }
         if (memUsedEl) memUsedEl.textContent = `${formatBytes(mem.used)} / ${formatBytes(mem.total)}`;
         if (memAvailEl) memAvailEl.textContent = `${formatBytes(mem.available)} Avail`;
         
