@@ -26,8 +26,8 @@ export class DashboardComponent {
 
     if (cpuCanvas) {
       this.cpuChart = new SparklineChart(cpuCanvas, {
-        color: "#d4f040",
-        fillColor: "rgba(212, 240, 64, 0.12)",
+        color: "#60a5fa",
+        fillColor: "rgba(96, 165, 250, 0.15)",
         maxVal: 100,
         autoScale: false,
       });
@@ -35,8 +35,8 @@ export class DashboardComponent {
 
     if (memCanvas) {
       this.memChart = new SparklineChart(memCanvas, {
-        color: "#52e58c",
-        fillColor: "rgba(82, 229, 140, 0.12)",
+        color: "#38bdf8",
+        fillColor: "rgba(56, 189, 248, 0.15)",
         maxVal: 100,
         autoScale: false,
       });
@@ -44,10 +44,10 @@ export class DashboardComponent {
 
     if (netCanvas) {
       this.netChart = new SparklineChart(netCanvas, {
-        color: "#d4f040", // RX Download (electric lime curve)
-        fillColor: "rgba(212, 240, 64, 0.10)",
-        secondaryColor: "#f97316", // TX Upload (sunset amber curve)
-        secondaryFillColor: "rgba(249, 115, 22, 0.10)",
+        color: "#60a5fa", // RX Download (azure blue curve)
+        fillColor: "rgba(96, 165, 250, 0.15)",
+        secondaryColor: "#f59e0b", // TX Upload (amber curve)
+        secondaryFillColor: "rgba(245, 158, 11, 0.12)",
         autoScale: true,
       });
     }

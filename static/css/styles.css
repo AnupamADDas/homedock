@@ -9,46 +9,46 @@
   --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   
-  /* Pinterest Glassmorphism Dark Charcoal & Obsidian Palette */
-  --bg-primary: #0c0d12;
-  --bg-secondary: #13141a;
-  --bg-tertiary: #1b1d25;
-  --bg-card: rgba(22, 24, 32, 0.72);
-  --bg-card-hover: rgba(30, 33, 44, 0.84);
-  --bg-input: rgba(14, 15, 20, 0.85);
+  /* Pinterest Blue Digital Dashboard (Midnight Sapphire Palette) */
+  --bg-primary: #060d1a;
+  --bg-secondary: #0c162c;
+  --bg-tertiary: #142140;
+  --bg-card: rgba(8, 17, 36, 0.76);
+  --bg-card-hover: rgba(14, 27, 54, 0.86);
+  --bg-input: rgba(6, 13, 26, 0.88);
   
-  /* Vibrancy & Ultra-Smooth Frosted Glass */
-  --glass-bg: rgba(20, 22, 30, 0.78);
-  --glass-bg-hover: rgba(28, 31, 42, 0.88);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-light: rgba(255, 255, 255, 0.16);
-  --glass-blur: blur(28px) saturate(180%);
-  --glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  /* Vibrancy & Ultra-Smooth Frosted Glass with Sapphire Sheen */
+  --glass-bg: rgba(7, 16, 34, 0.80);
+  --glass-bg-hover: rgba(13, 24, 48, 0.90);
+  --glass-border: rgba(147, 197, 253, 0.14);
+  --glass-border-light: rgba(191, 219, 254, 0.22);
+  --glass-blur: blur(28px) saturate(190%);
+  --glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(96, 165, 250, 0.1);
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.14);
+  --border-color: rgba(147, 197, 253, 0.12);
+  --border-light: rgba(147, 197, 253, 0.2);
   
   /* Text */
   --text-primary: #ffffff;
-  --text-secondary: #9ea3b2;
-  --text-muted: #6b7082;
+  --text-secondary: #94a9c9;
+  --text-muted: #64748b;
   
-  /* Pinterest Hero Accents */
-  --accent-primary: #d4f040;          /* Electric Lime / Chartreuse */
-  --accent-primary-hover: #e2f852;
-  --accent-primary-text: #0e0f14;
-  --accent-primary-alpha: rgba(212, 240, 64, 0.15);
-  --accent-primary-glow: 0 0 20px rgba(212, 240, 64, 0.45);
+  /* Pinterest Digital Dashboard Accents */
+  --accent-primary: #3b82f6;          /* Royal / Electric Blue */
+  --accent-primary-hover: #60a5fa;
+  --accent-primary-text: #ffffff;
+  --accent-primary-alpha: rgba(59, 130, 246, 0.18);
+  --accent-primary-glow: 0 0 20px rgba(59, 130, 246, 0.5);
   
-  --color-success: #52e58c;          /* Mint / Emerald Green ($586 in pin) */
-  --color-success-alpha: rgba(82, 229, 140, 0.16);
-  --color-warning: #f97316;          /* Warm Sunset Amber / Orange */
-  --color-warning-alpha: rgba(249, 115, 22, 0.16);
-  --color-danger: #f43f5e;           /* Rose Pink / Coral Red */
+  --color-success: #10b981;          /* Emerald / Mint */
+  --color-success-alpha: rgba(16, 185, 129, 0.16);
+  --color-warning: #f59e0b;          /* Sunset Gold */
+  --color-warning-alpha: rgba(245, 158, 11, 0.16);
+  --color-danger: #f43f5e;           /* Rose Pink */
   --color-danger-alpha: rgba(244, 63, 94, 0.16);
-  --color-info: #38bdf8;             /* Sky Blue */
-  --color-purple: #a855f7;           /* Vibrant Violet */
-  --color-teal: #2dd4bf;             /* Soft Teal */
+  --color-info: #38bdf8;             /* Sky Blue / Cyan */
+  --color-purple: #a855f7;           /* Soft Violet */
+  --color-teal: #2dd4bf;             /* Teal */
 
   /* macOS Traffic Light Colors */
   --traffic-close: #FF5F56;
@@ -71,7 +71,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 10px 24px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6);
-  --shadow-window: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-window: 0 32px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.15);
 }
 
 [data-theme="light"] {
@@ -158,11 +158,30 @@ input, textarea, select, [contenteditable="true"] {
   position: fixed;
   inset: 0;
   background: 
-    radial-gradient(ellipse 65% 55% at 50% 30%, rgba(249, 115, 22, 0.15), rgba(217, 70, 239, 0.04) 40%, transparent 72%),
-    radial-gradient(ellipse 55% 45% at 88% 20%, rgba(99, 102, 241, 0.08), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 12% 80%, rgba(139, 92, 246, 0.06), transparent 60%),
-    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(18, 20, 26, 0.95), #0a0b0e),
-    #0c0d12;
+    /* Specular Light Ribbon / Silk Aurora Wave flowing across canvas */
+    linear-gradient(130deg, 
+      transparent 0%, 
+      transparent 36%, 
+      rgba(147, 197, 253, 0.22) 47%, 
+      rgba(191, 219, 254, 0.38) 50%, 
+      rgba(59, 130, 246, 0.24) 53%, 
+      transparent 65%, 
+      transparent 100%
+    ),
+    /* Lower-left secondary light sheen */
+    linear-gradient(115deg, 
+      transparent 0%, 
+      transparent 58%, 
+      rgba(59, 130, 246, 0.16) 68%, 
+      rgba(147, 197, 253, 0.24) 72%, 
+      transparent 82%
+    ),
+    /* Radiant Top-Left Azure Light Bloom */
+    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(147, 197, 253, 0.42) 0%, rgba(59, 130, 246, 0.18) 35%, transparent 62%),
+    /* Center-Right Electric Cobalt Glow */
+    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(37, 99, 235, 0.35) 0%, transparent 65%),
+    /* Royal Cobalt & Sapphire Gradient from Pinterest pin (samples: #4b7bd0, #3d61b7, #3a5dae, #27409a, #243a8f) */
+    linear-gradient(140deg, #4b7bd0 0%, #3d61b7 20%, #3a5dae 42%, #27409a 68%, #243a8f 85%, #182760 100%);
   z-index: 0;
   pointer-events: none;
   background-attachment: fixed;
@@ -191,10 +210,18 @@ input, textarea, select, [contenteditable="true"] {
   padding: 3rem 1.5rem 2rem 1.5rem;
   z-index: 9999;
   background: 
-    radial-gradient(ellipse 65% 55% at 50% 32%, rgba(249, 115, 22, 0.16), rgba(217, 70, 239, 0.05) 40%, transparent 72%),
-    radial-gradient(ellipse 55% 45% at 88% 20%, rgba(99, 102, 241, 0.09), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 12% 80%, rgba(139, 92, 246, 0.07), transparent 60%),
-    #0a0b0e;
+    linear-gradient(130deg, 
+      transparent 0%, 
+      transparent 36%, 
+      rgba(147, 197, 253, 0.22) 47%, 
+      rgba(191, 219, 254, 0.38) 50%, 
+      rgba(59, 130, 246, 0.24) 53%, 
+      transparent 65%, 
+      transparent 100%
+    ),
+    radial-gradient(ellipse 65% 55% at 18% 18%, rgba(147, 197, 253, 0.42) 0%, rgba(59, 130, 246, 0.18) 35%, transparent 62%),
+    radial-gradient(ellipse 75% 65% at 65% 45%, rgba(37, 99, 235, 0.35) 0%, transparent 65%),
+    linear-gradient(140deg, #4b7bd0 0%, #3d61b7 20%, #3a5dae 42%, #27409a 68%, #243a8f 85%, #182760 100%);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
 }
@@ -216,7 +243,7 @@ input, textarea, select, [contenteditable="true"] {
 .macos-lock-date {
   font-size: 1.35rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   margin-top: 0.65rem;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
@@ -246,9 +273,9 @@ input, textarea, select, [contenteditable="true"] {
   width: 86px;
   height: 86px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f97316 0%, #d4f040 100%);
-  border: 3px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 24px rgba(212, 240, 64, 0.25);
+  background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(59, 130, 246, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -259,8 +286,8 @@ input, textarea, select, [contenteditable="true"] {
 .macos-lock-avatar .avatar-initial {
   font-size: 2.2rem;
   font-weight: 700;
-  color: #0e0f14;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .macos-lock-name {
@@ -281,8 +308,8 @@ input, textarea, select, [contenteditable="true"] {
   align-items: center;
   width: 100%;
   height: 44px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 17, 36, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-pill);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -291,9 +318,9 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .macos-password-capsule:focus-within {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 0 3px rgba(212, 240, 64, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
+  background: rgba(14, 27, 54, 0.82);
+  border-color: rgba(147, 197, 253, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 .macos-password-input {
@@ -309,7 +336,7 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .macos-password-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.88rem;
 }
 
@@ -324,7 +351,7 @@ input, textarea, select, [contenteditable="true"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0e0f14;
+  color: #1e3a8a;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -332,7 +359,7 @@ input, textarea, select, [contenteditable="true"] {
 
 .macos-password-submit:hover {
   background: var(--accent-primary);
-  color: #0e0f14;
+  color: #ffffff;
   box-shadow: var(--accent-primary-glow);
 }
 
@@ -343,8 +370,8 @@ input, textarea, select, [contenteditable="true"] {
 .macos-pill-input {
   width: 100%;
   height: 38px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 17, 36, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-pill);
   padding: 0 16px;
   color: #ffffff;
@@ -356,7 +383,7 @@ input, textarea, select, [contenteditable="true"] {
 
 .macos-pill-input:focus {
   border-color: var(--accent-primary);
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(14, 27, 54, 0.82);
   box-shadow: 0 0 0 3px var(--accent-primary-alpha);
 }
 
@@ -774,9 +801,9 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .badge-cpu-power {
-  background: rgba(249, 115, 22, 0.15);
-  color: #fb923c;
-  border-color: rgba(249, 115, 22, 0.3);
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
   font-weight: 600;
 }
 
@@ -811,7 +838,7 @@ input, textarea, select, [contenteditable="true"] {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #d4f040, #52e58c);
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
   border-radius: var(--radius-pill);
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1053,7 +1080,7 @@ input, textarea, select, [contenteditable="true"] {
   flex-direction: column;
   width: min(1080px, 92vw);
   height: min(780px, 84vh);
-  background: rgba(18, 20, 27, 0.9);
+  background: rgba(8, 17, 36, 0.92);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
@@ -1075,8 +1102,8 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .macos-window.focused {
-  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.22);
+  border-color: rgba(147, 197, 253, 0.24);
 }
 
 .macos-window.minimized {
@@ -1111,7 +1138,7 @@ input, textarea, select, [contenteditable="true"] {
 /* Window Title Bar */
 .window-titlebar {
   height: 42px;
-  background: rgba(24, 26, 34, 0.88);
+  background: rgba(10, 21, 44, 0.88);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -1244,11 +1271,11 @@ body.window-dragging .window-titlebar {
   left: 50%;
   transform: translateX(-50%);
   height: 72px;
-  background: rgba(18, 20, 27, 0.72);
+  background: rgba(8, 17, 36, 0.75);
   backdrop-filter: blur(35px) saturate(200%);
   -webkit-backdrop-filter: blur(35px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(147, 197, 253, 0.16);
+  border-top: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-dock);
   padding: 0 14px;
   display: flex;
@@ -1323,7 +1350,7 @@ body.window-dragging .window-titlebar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #14151b;
+  border: 2px solid #081124;
   box-shadow: 0 2px 8px rgba(244, 63, 94, 0.6);
   z-index: 5;
 }
@@ -1352,10 +1379,10 @@ body.window-dragging .window-titlebar {
   position: absolute;
   bottom: calc(100% + 14px);
   padding: 0.35rem 0.75rem;
-  background: rgba(16, 18, 24, 0.9);
+  background: rgba(8, 17, 36, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(147, 197, 253, 0.15);
   border-radius: var(--radius-sm);
   color: #ffffff;
   font-size: 11.5px;
@@ -1406,16 +1433,16 @@ body.window-dragging .window-titlebar {
 }
 
 .btn-primary {
-  background: #ffffff;
-  color: #0e0f14;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
 }
 
 .btn-primary:hover {
-  background: var(--accent-primary);
-  color: #0e0f14;
-  box-shadow: var(--accent-primary-glow);
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.55);
 }
 
 .btn-secondary {
