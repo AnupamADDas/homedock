@@ -9,6 +9,7 @@ if [ -d "$SCRIPT_DIR/venv" ]; then
     source "$SCRIPT_DIR/venv/bin/activate"
 fi
 
+export PATH="$SCRIPT_DIR/bin:$HOME/.local/bin:$PATH"
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 export HOMEDOCK_DATA_DIR="${HOMEDOCK_DATA_DIR:-$SCRIPT_DIR/data}"
 export HOMEDOCK_HOST="${HOMEDOCK_HOST:-0.0.0.0}"

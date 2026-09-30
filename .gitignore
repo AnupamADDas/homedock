@@ -26,3 +26,8 @@ data/*
 *.swo
 *~
 .DS_Store
+
+# Large static binaries
+bin/ffmpeg
+bin/ffprobe
+bin/qt-faststart

@@ -23,6 +23,7 @@ from typing import Dict, Any, List, Optional
 import yt_dlp
 
 from app.database import get_db_connection
+from app.config import FFMPEG_LOCATION
 
 class YoutubeDownloaderService:
     def __init__(self):
@@ -145,6 +146,8 @@ class YoutubeDownloaderService:
             "skip_download": True,
             "remote_components": ["ejs:github"],
         }
+        if FFMPEG_LOCATION:
+            ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(url, download=False)
@@ -434,6 +437,8 @@ class YoutubeDownloaderService:
             "postprocessors": postprocessors,
             "remote_components": ["ejs:github"],
         }
+        if FFMPEG_LOCATION:
+            ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
 
         if mode == "video":
             ydl_opts["merge_output_format"] = v_fmt

@@ -8,7 +8,7 @@ import secrets
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("HOMEDOCK_DATA_DIR", str(BASE_DIR / "data")))
@@ -63,10 +63,39 @@ def _resolve_aria2_bin() -> str:
     if sys_bin:
         return sys_bin
     return str(bundled)
-
+ 
 ARIA2_BIN = _resolve_aria2_bin()
 ARIA2_RPC_HOST = "127.0.0.1"
 ARIA2_RPC_PORT = int(os.environ.get("HOMEDOCK_ARIA2_PORT", "6810"))
+
+# FFmpeg & FFprobe location for YouTube & media transcoding
+def _resolve_ffmpeg_location() -> Optional[str]:
+    env_loc = os.environ.get("HOMEDOCK_FFMPEG_LOCATION")
+    if env_loc and os.path.exists(env_loc):
+        return env_loc
+    # Bundled bin directory
+    bundled_dir = BASE_DIR / "bin"
+    if (bundled_dir / "ffmpeg").exists() and os.access(bundled_dir / "ffmpeg", os.X_OK):
+        return str(bundled_dir)
+    # User local bin
+    user_bin = Path.home() / ".local" / "bin"
+    if (user_bin / "ffmpeg").exists() and os.access(user_bin / "ffmpeg", os.X_OK):
+        return str(user_bin)
+    # System PATH
+    sys_ffmpeg = shutil.which("ffmpeg")
+    if sys_ffmpeg:
+        return str(Path(sys_ffmpeg).parent)
+    return None
+
+FFMPEG_LOCATION = _resolve_ffmpeg_location()
+
+# Ensure local bin directories are in PATH for child subprocesses
+_bin_dirs = [str(BASE_DIR / "bin"), str(Path.home() / ".local" / "bin")]
+_current_path = os.environ.get("PATH", "")
+for _b in _bin_dirs:
+    if os.path.exists(_b) and _b not in _current_path:
+        _current_path = f"{_b}:{_current_path}"
+os.environ["PATH"] = _current_path
 
 # Database path
 DB_PATH = DATA_DIR / "homedock.db"
