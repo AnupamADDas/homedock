@@ -100,12 +100,12 @@ export class WindowManager {
       const titlebar = win.querySelector(".window-titlebar");
       if (titlebar) {
         titlebar.addEventListener("dblclick", (e) => {
-          if (e.target.closest(".traffic-btn") || e.target.closest("button") || e.target.closest("input")) return;
+          if (e.target.closest(".traffic-lights") || e.target.closest(".traffic-btn") || e.target.closest("button") || e.target.closest("input")) return;
           this.toggleMaximizeWindow(id);
         });
 
         titlebar.addEventListener("mousedown", (e) => {
-          if (e.target.closest(".traffic-btn") || e.target.closest("button") || e.target.closest("input")) return;
+          if (e.target.closest(".traffic-lights") || e.target.closest(".traffic-btn") || e.target.closest("button") || e.target.closest("input")) return;
           if (this.windows[id].isMaximized) return;
 
           this.focusWindow(id);
@@ -164,28 +164,30 @@ export class WindowManager {
       });
     });
 
-    // Rescan disks dock item
+    // Rescan disks dock item (if present)
     const rescanBtn = document.getElementById("dockRescanBtn");
     if (rescanBtn) {
-      rescanBtn.addEventListener("click", async () => {
-        try {
-          showToast("Scanning storage devices...", "info");
-          const devices = await api.refreshStorage();
-          dashboardComponent.updateStorage(devices);
-          fileManagerComponent.loadMountedDrives();
-          showToast("Storage scan completed", "success");
-        } catch (err) {
-          showToast("Failed to refresh storage: " + err.message, "error");
-        }
-      });
+      rescanBtn.addEventListener("click", () => this.rescanDrives());
     }
 
-    // Lock screen dock item
+    // Lock screen dock item (if present)
     const lockBtn = document.getElementById("dockLockBtn");
     if (lockBtn) {
       lockBtn.addEventListener("click", () => {
         this.lockScreen();
       });
+    }
+  }
+
+  async rescanDrives() {
+    try {
+      showToast("Scanning storage devices...", "info");
+      const devices = await api.refreshStorage();
+      dashboardComponent.updateStorage(devices);
+      fileManagerComponent.loadMountedDrives();
+      showToast("Storage scan completed", "success");
+    } catch (err) {
+      showToast("Failed to refresh storage: " + err.message, "error");
     }
   }
 
@@ -301,7 +303,7 @@ export class WindowManager {
         document.getElementById("fmNewFolderBtn")?.click();
         break;
       case "rescan-drives":
-        document.getElementById("dockRescanBtn")?.click();
+        this.rescanDrives();
         break;
       case "minimize-all":
         this.showDesktop();
