@@ -168,7 +168,7 @@ class App {
         downloadManagerComponent.updateLive(data.download_stats, data.downloads);
         const badge = document.getElementById("dockDownloadBadge");
         if (badge) {
-          const active = data.download_stats.numActive || 0;
+          const active = (data.download_stats.num_active !== undefined) ? data.download_stats.num_active : (data.download_stats.numActive || 0);
           if (active > 0) {
             badge.textContent = active;
             badge.style.display = "inline-flex";

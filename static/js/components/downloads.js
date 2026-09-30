@@ -38,6 +38,8 @@ export class DownloadManagerComponent {
     this.initialized = false;
     this.ytMediaMode = "video";
     this.ytProbing = false;
+    this._lastDownloadsHash = "";
+    this._watcherTimer = null;
   }
 
   async init() {
@@ -45,6 +47,7 @@ export class DownloadManagerComponent {
     this.setupEventListeners();
     await this.fetchDefaultDir();
     await this.refresh();
+    this.startLiveWatcher();
     this.initialized = true;
   }
 
@@ -578,14 +581,49 @@ export class DownloadManagerComponent {
     }
   }
 
+  startLiveWatcher() {
+    if (this._watcherTimer) return;
+    this._watcherTimer = setInterval(async () => {
+      const isDlWinOpen = document.getElementById("windowDownloads")?.style.display !== "none";
+      const hasActive = this.downloads && this.downloads.some(d => d.status === "active" || d.status === "waiting");
+      if (hasActive || isDlWinOpen) {
+        try {
+          const [downloads, stats] = await Promise.all([
+            api.listDownloads(),
+            api.getDownloadStats(),
+          ]);
+          this.updateLive(stats, downloads);
+        } catch {
+          // Ignore polling errors during background intervals
+        }
+      }
+    }, 2000);
+  }
+
   updateLive(stats, downloads) {
     if (stats) {
       this.stats = stats;
       this.renderStats();
     }
-    if (downloads && downloads.length > 0) {
-      this.downloads = downloads;
-      this.renderDownloads();
+    if (Array.isArray(downloads)) {
+      const prevSerialized = this._lastDownloadsHash;
+      const newSerialized = JSON.stringify(downloads.map(d => ({
+        gid: d.gid,
+        status: d.status,
+        percent: d.percent,
+        completed_bytes: d.completed_bytes,
+        total_bytes: d.total_bytes,
+        download_speed: d.download_speed,
+        upload_speed: d.upload_speed,
+        status_detail: d.status_detail,
+        error_message: d.error_message
+      })));
+
+      if (prevSerialized !== newSerialized || this.downloads.length !== downloads.length) {
+        this._lastDownloadsHash = newSerialized;
+        this.downloads = downloads;
+        this.renderDownloads();
+      }
     }
   }
 
@@ -684,6 +722,7 @@ export class DownloadManagerComponent {
       const isComplete = item.status === "complete";
       const isWaiting = item.status === "waiting";
       const taskLimit = item.max_download_limit || 0;
+      const percentVal = isComplete ? 100 : (typeof item.percent === 'number' ? item.percent : 0);
 
       let statusBadge = `<span class="badge-tag" style="background: var(--bg-tertiary); color: var(--text-secondary);">${item.status}</span>`;
       if (isActive) {
@@ -846,13 +885,13 @@ export class DownloadManagerComponent {
 
           <!-- Progress Bar (PulseDL Style) -->
           <div class="download-progress-bar">
-            <div class="download-progress-fill ${fillClass}" style="width: ${item.percent}%;"></div>
+            <div class="download-progress-fill ${fillClass}" style="width: ${percentVal}%;"></div>
           </div>
 
           <!-- Footer Metadata -->
           <div class="download-item-meta">
             <div class="download-meta-left">
-              <span class="download-percent-val">${item.percent}%</span>
+              <span class="download-percent-val">${percentVal}%</span>
               <span>(${formatBytes(item.completed_bytes)} / ${formatBytes(item.total_bytes)})</span>
             </div>
             <div class="download-meta-right">

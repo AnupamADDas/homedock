@@ -1860,19 +1860,62 @@ body.window-dragging .window-titlebar {
   align-items: center;
 }
 
+.download-progress-bar,
 .download-progress-bg {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-pill);
   overflow: hidden;
+  margin: 0.65rem 0 0.5rem 0;
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .download-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #d4f040, #52e58c);
+  min-width: 0;
   border-radius: var(--radius-pill);
-  transition: width 0.3s ease;
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.4, 1);
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+.download-progress-fill.active {
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
+}
+
+.download-progress-fill.active.youtube {
+  background: linear-gradient(90deg, #dc2626, #f87171);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.45);
+}
+
+.download-progress-fill.complete {
+  background: linear-gradient(90deg, #059669, #34d399);
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.35);
+}
+
+.download-progress-fill.paused {
+  background: linear-gradient(90deg, #d97706, #fbbf24);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+}
+
+.download-progress-fill.error {
+  background: linear-gradient(90deg, #be123c, #f43f5e);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.35);
+}
+
+.download-progress-fill.active[style*="width: 0%"],
+.download-progress-fill.active[style*="width: 0.0%"] {
+  min-width: 14px;
+  animation: dl-indeterminate-pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes dl-indeterminate-pulse {
+  0% { opacity: 0.35; }
+  50% { opacity: 0.95; }
+  100% { opacity: 0.35; }
 }
 
 .download-item-meta {

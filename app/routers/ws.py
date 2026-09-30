@@ -58,13 +58,10 @@ class ConnectionManager:
                 # System Telemetry
                 metrics = system_monitor.sample_metrics()
                 
-                # Download Stats
+                # Download Stats & Live Tasks
                 try:
                     dl_stats = await download_manager.get_global_stat()
-                    # If active downloads exist, also send summary
-                    downloads = []
-                    if dl_stats.get("num_active", 0) > 0:
-                        downloads = await download_manager.get_all_downloads()
+                    downloads = await download_manager.get_all_downloads()
                 except Exception:
                     dl_stats = None
                     downloads = []
