@@ -77,12 +77,30 @@ class App {
       });
     }
 
+    // Setup Lock Screen Username and initial
+    const savedUser = localStorage.getItem("homedock_username") || "anupam";
+    const unameInput = document.getElementById("loginUsername");
+    const lockName = document.getElementById("lockUserName");
+    const lockInitial = document.getElementById("lockUserAvatarInitial");
+
+    if (unameInput) unameInput.value = savedUser;
+    if (lockName) lockName.textContent = savedUser;
+    if (lockInitial) lockInitial.textContent = savedUser.charAt(0).toUpperCase();
+
+    if (unameInput) {
+      unameInput.addEventListener("input", (e) => {
+        const val = e.target.value.trim();
+        if (lockName) lockName.textContent = val || "User";
+        if (lockInitial) lockInitial.textContent = (val || "U").charAt(0).toUpperCase();
+      });
+    }
+
     // Login Form Submit (macOS Lock Screen)
     const loginForm = document.getElementById("loginForm");
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const user = document.getElementById("loginUsername")?.value.trim() || "admin";
+        const user = document.getElementById("loginUsername")?.value.trim() || "anupam";
         const pass = document.getElementById("loginPassword").value;
         const errorEl = document.getElementById("loginErrorMsg");
 
@@ -90,7 +108,8 @@ class App {
 
         try {
           await api.login(user, pass);
-          loginForm.reset();
+          localStorage.setItem("homedock_username", user);
+          document.getElementById("loginPassword").value = "";
           await this.checkAuth();
         } catch (err) {
           if (errorEl) {
@@ -103,20 +122,6 @@ class App {
             void lockCard.offsetWidth; // Reflow for animation trigger
             lockCard.classList.add("shake");
           }
-        }
-      });
-    }
-
-    // Switch User toggle button on Lock Screen
-    const toggleUserBtn = document.getElementById("btnToggleUsername");
-    const userGroup = document.getElementById("loginUsernameGroup");
-    if (toggleUserBtn && userGroup) {
-      toggleUserBtn.addEventListener("click", () => {
-        const isHidden = userGroup.style.display === "none";
-        userGroup.style.display = isHidden ? "block" : "none";
-        toggleUserBtn.textContent = isHidden ? "Cancel" : "Switch User";
-        if (isHidden) {
-          document.getElementById("loginUsername")?.focus();
         }
       });
     }

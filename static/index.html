@@ -26,27 +26,27 @@
         <div class="macos-lock-avatar">
           <span id="lockUserAvatarInitial" class="avatar-initial">A</span>
         </div>
-        <div id="lockUserName" class="macos-lock-name">Admin</div>
+        <div id="lockUserName" class="macos-lock-name">anupam</div>
 
         <!-- Login Error Message -->
         <div id="loginErrorMsg" class="macos-login-error" style="display: none;"></div>
 
         <form id="loginForm" class="macos-login-form">
-          <!-- Optional Toggleable Username Field -->
-          <div id="loginUsernameGroup" class="form-group" style="display: none; margin-bottom: 0.75rem;">
-            <input type="text" id="loginUsername" class="macos-pill-input" autocomplete="username" value="admin" placeholder="Username">
+          <!-- Username Input -->
+          <div class="form-group" style="margin-bottom: 0.65rem;">
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.6); text-align: left; margin-bottom: 0.25rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">Username</div>
+            <input type="text" id="loginUsername" class="macos-pill-input" autocomplete="username" required value="anupam" placeholder="Username">
           </div>
 
-          <!-- macOS Capsule Password Input with Arrow Submit Button -->
-          <div class="macos-password-capsule">
-            <input type="password" id="loginPassword" class="macos-password-input" required autocomplete="current-password" placeholder="Enter Password" autofocus>
-            <button type="submit" class="macos-password-submit" aria-label="Sign In" title="Sign In">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
-
-          <div style="text-align: center; margin-top: 0.85rem;">
-            <button type="button" id="btnToggleUsername" class="macos-switch-user-btn">Switch User</button>
+          <!-- Password Capsule Input with Arrow Submit Button -->
+          <div class="form-group" style="margin-bottom: 0;">
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.6); text-align: left; margin-bottom: 0.25rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">Password</div>
+            <div class="macos-password-capsule">
+              <input type="password" id="loginPassword" class="macos-password-input" required autocomplete="current-password" placeholder="Enter Password" autofocus>
+              <button type="submit" class="macos-password-submit" aria-label="Sign In" title="Sign In">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -1444,6 +1444,6 @@
     <div id="toastContainer" class="toast-container"></div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=macos_redesign_1"></script>
+  <script type="module" src="/static/js/app.js?v=macos_redesign_2"></script>
 </body>
 </html>
