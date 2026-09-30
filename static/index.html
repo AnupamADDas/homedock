@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>HomeDock — Server Manager</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=macos_dock_v2">
+  <link rel="stylesheet" href="/static/css/styles.css?v=pinterest_glassmorphism_v1">
 </head>
 <body>
   <!-- Ambient macOS Sonoma / Sequoia Wallpaper Background -->
@@ -260,7 +260,7 @@
                 <span class="metric-sub">used</span>
               </div>
               <div class="progress-bar-bg">
-                <div id="memBarFill" class="progress-bar-fill" style="width: 0%; background-color: #a855f7;"></div>
+                <div id="memBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
               </div>
               <div class="chart-container">
                 <canvas id="memHistoryChart"></canvas>
@@ -322,7 +322,7 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                   <span>Hardware & Sensors</span>
                 </div>
-                <span id="fanStatusVal" class="card-badge" style="background: rgba(99,102,241,0.15); color: #818cf8; display: inline-flex; align-items: center; gap: 0.35rem;">
+                <span id="fanStatusVal" class="card-badge" style="background: var(--color-info-alpha); color: var(--color-info); display: inline-flex; align-items: center; gap: 0.35rem;">
                   <svg id="fanIconSvg" class="fan-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 9a4 4 0 0 1 4-4 4 4 0 0 1-1 3.8"/><path d="M15 12a4 4 0 0 1 4 4 4 4 0 0 1-3.8-1"/><path d="M12 15a4 4 0 0 1-4 4 4 4 0 0 1 1-3.8"/><path d="M9 12a4 4 0 0 1-4-4 4 4 0 0 1 3.8 1"/></svg>
                   <span id="fanRpmText">Checking Fan</span>
                 </span>

@@ -26,8 +26,8 @@ export class DashboardComponent {
 
     if (cpuCanvas) {
       this.cpuChart = new SparklineChart(cpuCanvas, {
-        color: "#38bdf8",
-        fillColor: "rgba(56, 189, 248, 0.12)",
+        color: "#d4f040",
+        fillColor: "rgba(212, 240, 64, 0.12)",
         maxVal: 100,
         autoScale: false,
       });
@@ -35,8 +35,8 @@ export class DashboardComponent {
 
     if (memCanvas) {
       this.memChart = new SparklineChart(memCanvas, {
-        color: "#a855f7",
-        fillColor: "rgba(168, 85, 247, 0.12)",
+        color: "#52e58c",
+        fillColor: "rgba(82, 229, 140, 0.12)",
         maxVal: 100,
         autoScale: false,
       });
@@ -44,10 +44,10 @@ export class DashboardComponent {
 
     if (netCanvas) {
       this.netChart = new SparklineChart(netCanvas, {
-        color: "#10b981", // RX Download
-        fillColor: "rgba(16, 185, 129, 0.12)",
-        secondaryColor: "#f59e0b", // TX Upload
-        secondaryFillColor: "rgba(245, 158, 11, 0.12)",
+        color: "#d4f040", // RX Download (electric lime curve)
+        fillColor: "rgba(212, 240, 64, 0.10)",
+        secondaryColor: "#f97316", // TX Upload (sunset amber curve)
+        secondaryFillColor: "rgba(249, 115, 22, 0.10)",
         autoScale: true,
       });
     }
@@ -235,7 +235,7 @@ export class DashboardComponent {
             fanTextEl.textContent = `${s.fan_rpm} RPM`;
             if (fanIconEl) fanIconEl.classList.toggle("idle", s.fan_rpm === 0);
             if (fanBadgeEl) {
-              fanBadgeEl.style.background = "var(--color-info-alpha, rgba(99,102,241,0.15))";
+              fanBadgeEl.style.background = "var(--color-info-alpha)";
               fanBadgeEl.style.color = "var(--color-info)";
             }
           } else {
