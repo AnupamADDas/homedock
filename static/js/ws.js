@@ -13,6 +13,10 @@ class WebSocketManager {
     this.maxReconnectDelay = 10000;
   }
 
+  isConnected() {
+    return Boolean(this.ws && this.ws.readyState === WebSocket.OPEN);
+  }
+
   connect() {
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;

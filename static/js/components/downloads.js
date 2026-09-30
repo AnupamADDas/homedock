@@ -5,6 +5,7 @@
  */
 
 import { api, showToast } from "../api.js";
+import { wsManager } from "../ws.js";
 import { formatBytes, formatSpeed, formatTime, parseSpeedLimitStr, formatSpeedLimitStr } from "../utils/formatters.js";
 import { folderBrowser } from "./folder_browser.js";
 import { showConfirmDialog } from "./confirm_dialog.js";
@@ -584,6 +585,9 @@ export class DownloadManagerComponent {
   startLiveWatcher() {
     if (this._watcherTimer) return;
     this._watcherTimer = setInterval(async () => {
+      // If WebSocket is connected, live stats and downloads are streamed in real time via WS
+      if (wsManager.isConnected()) return;
+
       const isDlWinOpen = document.getElementById("windowDownloads")?.style.display !== "none";
       const hasActive = this.downloads && this.downloads.some(d => d.status === "active" || d.status === "waiting");
       if (hasActive || isDlWinOpen) {

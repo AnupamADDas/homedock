@@ -30,6 +30,8 @@ class SystemMonitorService:
         self.last_cpu_energy: Dict[str, int] = {}
         self.last_cpu_energy_time: Optional[float] = None
         self._rapl_domains: Optional[Dict[str, Dict[str, Any]]] = None
+        self._rapl_checked: bool = False
+        self._hwmon_paths: Optional[Dict[str, Any]] = None
         self._cached_tdp: Optional[float] = None
 
         self._running = False
@@ -101,60 +103,144 @@ class SystemMonitorService:
     def _init_power_counters(self):
         """Initializes baseline energy readings for CPU power calculation."""
         try:
-            if self._rapl_domains is None:
+            if not self._rapl_checked:
                 self._rapl_domains = self._discover_rapl_domains()
-            now = time.time()
-            for name, d in self._rapl_domains.items():
-                try:
-                    with open(d["energy_file"], "r") as f:
-                        self.last_cpu_energy[name] = int(f.read().strip())
-                except Exception:
-                    pass
-            if self.last_cpu_energy:
-                self.last_cpu_energy_time = now
+                self._rapl_checked = True
+            if self._rapl_domains:
+                now = time.time()
+                for name, d in self._rapl_domains.items():
+                    try:
+                        with open(d["energy_file"], "r") as f:
+                            self.last_cpu_energy[name] = int(f.read().strip())
+                    except Exception:
+                        pass
+                if self.last_cpu_energy:
+                    self.last_cpu_energy_time = now
         except Exception:
             pass
 
-    def _read_hwmon_cpu_power(self) -> Optional[float]:
-        """Fallback to read CPU power from /sys/class/hwmon if available."""
+    def _discover_hwmon_paths(self) -> Dict[str, Any]:
+        """Discovers direct file paths for hardware sensors to avoid rescanning sysfs directories on every sample."""
+        cache: Dict[str, Any] = {
+            "cpu_temp_file": None,
+            "core_temp_files": [],
+            "fan_file": None,
+            "nvme_temp_file": None,
+            "pch_temp_file": None,
+            "wifi_temp_file": None,
+            "acpi_temp_file": None,
+            "cpu_power_file": None,
+            "has_bat0": False,
+        }
         hwmon_dir = "/sys/class/hwmon"
         if not os.path.exists(hwmon_dir):
-            return None
+            return cache
+
         try:
             for entry in os.listdir(hwmon_dir):
                 entry_path = os.path.join(hwmon_dir, entry)
                 if not os.path.isdir(entry_path):
                     continue
-                for f in os.listdir(entry_path):
-                    if f.startswith("power") and f.endswith("_input"):
-                        val_path = os.path.join(entry_path, f)
-                        label_path = os.path.join(entry_path, f.replace("_input", "_label"))
-                        label = ""
-                        if os.path.exists(label_path):
-                            try:
-                                with open(label_path, "r") as lf:
-                                    label = lf.read().strip().lower()
-                            except Exception:
-                                pass
-                        name_path = os.path.join(entry_path, "name")
-                        chip_name = ""
-                        if os.path.exists(name_path):
-                            try:
-                                with open(name_path, "r") as nf:
-                                    chip_name = nf.read().strip().lower()
-                            except Exception:
-                                pass
-                        if "cpu" in label or "package" in label or "core" in label or "cpu" in chip_name:
-                            try:
-                                with open(val_path, "r") as vf:
-                                    uw = float(vf.read().strip())
-                                    watts = uw / 1000000.0
-                                    if 0.0 <= watts < 2000.0:
-                                        return round(watts, 1)
-                            except Exception:
-                                pass
+                name_file = os.path.join(entry_path, "name")
+                name = ""
+                if os.path.exists(name_file):
+                    try:
+                        with open(name_file, "r") as f:
+                            name = f.read().strip()
+                    except Exception:
+                        pass
+
+                # Check for CPU power input
+                if not cache["cpu_power_file"]:
+                    try:
+                        for f in os.listdir(entry_path):
+                            if f.startswith("power") and f.endswith("_input"):
+                                val_path = os.path.join(entry_path, f)
+                                label_path = os.path.join(entry_path, f.replace("_input", "_label"))
+                                label = ""
+                                if os.path.exists(label_path):
+                                    try:
+                                        with open(label_path, "r") as lf:
+                                            label = lf.read().strip().lower()
+                                    except Exception:
+                                        pass
+                                if "cpu" in label or "package" in label or "core" in label or "cpu" in name.lower():
+                                    cache["cpu_power_file"] = val_path
+                                    break
+                    except Exception:
+                        pass
+
+                if name == "coretemp":
+                    try:
+                        for f in sorted(os.listdir(entry_path)):
+                            if f.startswith("temp") and f.endswith("_input"):
+                                val_file = os.path.join(entry_path, f)
+                                label_file = os.path.join(entry_path, f.replace("_input", "_label"))
+                                label = f
+                                if os.path.exists(label_file):
+                                    try:
+                                        with open(label_file, "r") as lf:
+                                            label = lf.read().strip()
+                                    except Exception:
+                                        pass
+                                if "Package" in label or label == "temp1_input":
+                                    if not cache["cpu_temp_file"]:
+                                        cache["cpu_temp_file"] = val_file
+                                else:
+                                    cache["core_temp_files"].append((label, val_file))
+                    except Exception:
+                        pass
+
+                if name in ("asus", "asus-nb-wmi", "thinkpad", "nct6775", "it87"):
+                    try:
+                        for f in os.listdir(entry_path):
+                            if f.startswith("fan") and f.endswith("_input"):
+                                cache["fan_file"] = os.path.join(entry_path, f)
+                                break
+                    except Exception:
+                        pass
+
+                if name == "nvme":
+                    temp_f = os.path.join(entry_path, "temp1_input")
+                    if os.path.exists(temp_f):
+                        cache["nvme_temp_file"] = temp_f
+
+                if "pch" in name:
+                    temp_f = os.path.join(entry_path, "temp1_input")
+                    if os.path.exists(temp_f):
+                        cache["pch_temp_file"] = temp_f
+
+                if "wifi" in name:
+                    temp_f = os.path.join(entry_path, "temp1_input")
+                    if os.path.exists(temp_f):
+                        cache["wifi_temp_file"] = temp_f
+
+                if "acpi" in name:
+                    temp_f = os.path.join(entry_path, "temp1_input")
+                    if os.path.exists(temp_f):
+                        cache["acpi_temp_file"] = temp_f
+
+                if name == "BAT0":
+                    cache["has_bat0"] = True
         except Exception:
             pass
+
+        return cache
+
+    def _read_hwmon_cpu_power(self) -> Optional[float]:
+        """Reads CPU power from cached /sys/class/hwmon sensor without directory scans."""
+        if self._hwmon_paths is None:
+            self._hwmon_paths = self._discover_hwmon_paths()
+        power_file = self._hwmon_paths.get("cpu_power_file")
+        if power_file and os.path.exists(power_file):
+            try:
+                with open(power_file, "r") as vf:
+                    uw = float(vf.read().strip())
+                    watts = uw / 1000000.0
+                    if 0.0 <= watts < 2000.0:
+                        return round(watts, 1)
+            except Exception:
+                self._hwmon_paths = None
         return None
 
     def _get_base_tdp(self) -> float:
@@ -233,8 +319,9 @@ class SystemMonitorService:
 
     def _sample_cpu_power(self, now: float, cpu_overall: float = 0.0) -> Tuple[Optional[float], str]:
         """Calculates instantaneous CPU package power in Watts from hardware counters or dynamic model."""
-        if self._rapl_domains is None or not self._rapl_domains:
+        if not self._rapl_checked:
             self._rapl_domains = self._discover_rapl_domains()
+            self._rapl_checked = True
 
         # 1. RAPL hardware energy counters
         if self._rapl_domains:
@@ -295,8 +382,12 @@ class SystemMonitorService:
             pass
 
     def _read_hwmon_sensors(self) -> Dict[str, Any]:
-        """Discovers and parses /sys/class/hwmon without requiring root privileges."""
-        sensors_data = {
+        """Reads hardware sensors directly from cached hwmon paths without scanning directories."""
+        if self._hwmon_paths is None:
+            self._hwmon_paths = self._discover_hwmon_paths()
+
+        cache = self._hwmon_paths
+        sensors_data: Dict[str, Any] = {
             "cpu_temp": None,
             "core_temps": [],
             "fan_rpm": None,
@@ -307,130 +398,82 @@ class SystemMonitorService:
             "acpi_temp": None,
             "battery": None,
         }
-        
-        hwmon_dir = "/sys/class/hwmon"
-        if not os.path.exists(hwmon_dir):
-            return sensors_data
 
-        for entry in os.listdir(hwmon_dir):
-            entry_path = os.path.join(hwmon_dir, entry)
-            if not os.path.isdir(entry_path):
-                continue
-                
-            name_file = os.path.join(entry_path, "name")
-            name = ""
-            if os.path.exists(name_file):
-                try:
-                    with open(name_file, "r") as f:
-                        name = f.read().strip()
-                except Exception:
-                    pass
-
-            # Coretemp (Intel CPU)
-            if name == "coretemp":
-                try:
-                    core_temps_found = []
-                    for f in sorted(os.listdir(entry_path)):
-                        if f.startswith("temp") and f.endswith("_input"):
-                            val_file = os.path.join(entry_path, f)
-                            label_file = os.path.join(entry_path, f.replace("_input", "_label"))
-                            label = f
-                            if os.path.exists(label_file):
-                                with open(label_file, "r") as lf:
-                                    label = lf.read().strip()
-                            with open(val_file, "r") as vf:
-                                temp_c = float(vf.read().strip()) / 1000.0
-                                
-                            if "Package" in label or label == "temp1_input":
-                                if sensors_data["cpu_temp"] is None:
-                                    sensors_data["cpu_temp"] = round(temp_c, 1)
-                            else:
-                                core_temps_found.append({
-                                    "label": label,
-                                    "temp": round(temp_c, 1)
-                                })
-                    sensors_data["core_temps"] = core_temps_found
-                except Exception:
-                    pass
-
-            # ASUS fan / generic platform fan
-            if name in ("asus", "asus-nb-wmi", "thinkpad", "nct6775", "it87"):
-                try:
-                    for f in os.listdir(entry_path):
-                        if f.startswith("fan") and f.endswith("_input"):
-                            with open(os.path.join(entry_path, f), "r") as ff:
-                                rpm = int(ff.read().strip())
-                                sensors_data["fan_rpm"] = rpm
-                                sensors_data["fan_available"] = True
-                                break
-                except Exception:
-                    pass
-
-            # NVMe SSD temperature
-            if name == "nvme":
-                try:
-                    temp_f = os.path.join(entry_path, "temp1_input")
-                    if os.path.exists(temp_f):
-                        with open(temp_f, "r") as nf:
-                            sensors_data["nvme_temp"] = round(float(nf.read().strip()) / 1000.0, 1)
-                except Exception:
-                    pass
-
-            # PCH Skylake chipset temperature
-            if "pch" in name:
-                try:
-                    temp_f = os.path.join(entry_path, "temp1_input")
-                    if os.path.exists(temp_f):
-                        with open(temp_f, "r") as pf:
-                            sensors_data["pch_temp"] = round(float(pf.read().strip()) / 1000.0, 1)
-                except Exception:
-                    pass
-
-            # WiFi temperature
-            if "wifi" in name:
-                try:
-                    temp_f = os.path.join(entry_path, "temp1_input")
-                    if os.path.exists(temp_f):
-                        with open(temp_f, "r") as wf:
-                            sensors_data["wifi_temp"] = round(float(wf.read().strip()) / 1000.0, 1)
-                except Exception:
-                    pass
-
-            # ACPI temperature
-            if "acpi" in name:
-                try:
-                    temp_f = os.path.join(entry_path, "temp1_input")
-                    if os.path.exists(temp_f):
-                        with open(temp_f, "r") as af:
-                            sensors_data["acpi_temp"] = round(float(af.read().strip()) / 1000.0, 1)
-                except Exception:
-                    pass
-
-            # Battery (ZenBook laptop)
-            if name == "BAT0":
-                try:
-                    bat = psutil.sensors_battery()
-                    if bat:
-                        sensors_data["battery"] = {
-                            "percent": round(bat.percent, 1),
-                            "power_plugged": bat.power_plugged,
-                            "secsleft": bat.secsleft if bat.secsleft != psutil.POWER_TIME_UNLIMITED else None
-                        }
-                except Exception:
-                    pass
-
-        # Fallback for battery if not checked in BAT0
-        if sensors_data["battery"] is None:
+        # CPU Package temp
+        if cache.get("cpu_temp_file"):
             try:
-                bat = psutil.sensors_battery()
-                if bat:
-                    sensors_data["battery"] = {
-                        "percent": round(bat.percent, 1),
-                        "power_plugged": bat.power_plugged,
-                        "secsleft": bat.secsleft if bat.secsleft != psutil.POWER_TIME_UNLIMITED else None
-                    }
+                with open(cache["cpu_temp_file"], "r") as vf:
+                    sensors_data["cpu_temp"] = round(float(vf.read().strip()) / 1000.0, 1)
             except Exception:
-                pass
+                self._hwmon_paths = None
+
+        # Core temps
+        if cache.get("core_temp_files"):
+            core_temps_found = []
+            try:
+                for label, val_file in cache["core_temp_files"]:
+                    with open(val_file, "r") as vf:
+                        temp_c = float(vf.read().strip()) / 1000.0
+                        core_temps_found.append({
+                            "label": label,
+                            "temp": round(temp_c, 1)
+                        })
+                sensors_data["core_temps"] = core_temps_found
+            except Exception:
+                self._hwmon_paths = None
+
+        # Fan
+        if cache.get("fan_file"):
+            try:
+                with open(cache["fan_file"], "r") as ff:
+                    sensors_data["fan_rpm"] = int(ff.read().strip())
+                    sensors_data["fan_available"] = True
+            except Exception:
+                self._hwmon_paths = None
+
+        # NVMe
+        if cache.get("nvme_temp_file"):
+            try:
+                with open(cache["nvme_temp_file"], "r") as nf:
+                    sensors_data["nvme_temp"] = round(float(nf.read().strip()) / 1000.0, 1)
+            except Exception:
+                self._hwmon_paths = None
+
+        # PCH
+        if cache.get("pch_temp_file"):
+            try:
+                with open(cache["pch_temp_file"], "r") as pf:
+                    sensors_data["pch_temp"] = round(float(pf.read().strip()) / 1000.0, 1)
+            except Exception:
+                self._hwmon_paths = None
+
+        # WiFi
+        if cache.get("wifi_temp_file"):
+            try:
+                with open(cache["wifi_temp_file"], "r") as wf:
+                    sensors_data["wifi_temp"] = round(float(wf.read().strip()) / 1000.0, 1)
+            except Exception:
+                self._hwmon_paths = None
+
+        # ACPI
+        if cache.get("acpi_temp_file"):
+            try:
+                with open(cache["acpi_temp_file"], "r") as af:
+                    sensors_data["acpi_temp"] = round(float(af.read().strip()) / 1000.0, 1)
+            except Exception:
+                self._hwmon_paths = None
+
+        # Battery
+        try:
+            bat = psutil.sensors_battery()
+            if bat:
+                sensors_data["battery"] = {
+                    "percent": round(bat.percent, 1),
+                    "power_plugged": bat.power_plugged,
+                    "secsleft": bat.secsleft if bat.secsleft != psutil.POWER_TIME_UNLIMITED else None
+                }
+        except Exception:
+            pass
 
         # Fallback for CPU temp via acpitz or thermal_zone if coretemp was missing
         if sensors_data["cpu_temp"] is None:
@@ -443,7 +486,7 @@ class SystemMonitorService:
             except Exception:
                 pass
 
-        # Fallback for fan check across all hwmon if asus name matched differently
+        # Fallback for fan check across all hwmon if platform matched differently
         if not sensors_data["fan_available"]:
             try:
                 fans = psutil.sensors_fans()
@@ -461,9 +504,10 @@ class SystemMonitorService:
         """Calculates instantaneous telemetry metrics and appends to circular history."""
         now = time.time()
 
-        # Periodic memory compaction and glibc heap trimming every 60 seconds
+        # Periodic memory compaction, cache refresh, and glibc heap trimming every 60 seconds
         if now - self._last_trim_time > 60.0:
             self._last_trim_time = now
+            self._hwmon_paths = None  # Invalidate hwmon cache periodically to catch newly attached sensors
             try:
                 import ctypes, gc
                 gc.collect()

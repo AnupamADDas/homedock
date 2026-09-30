@@ -15,6 +15,9 @@ export class DashboardComponent {
     this.netChart = null;
     this.initialized = false;
     this.maxObservedNetSpeed = 5 * 1024 * 1024; // 5 MB/s baseline dynamic scale
+    this._lastStorageHash = "";
+    this._lastStorageStruct = "";
+    this._lastIfaceNames = "";
   }
 
   init() {
@@ -122,14 +125,25 @@ export class DashboardComponent {
           }
         }
 
-        // Per-core mini bars
+        // Per-core mini bars (diffed in-place to avoid DOM thrashing)
         const coresContainer = document.getElementById("cpuCoresList");
         if (coresContainer && cpu.cores && cpu.cores.length > 0) {
-          coresContainer.innerHTML = cpu.cores.map((val, idx) => `
-            <div class="core-mini-item" title="Core ${idx}: ${val}%">
-              <div class="core-mini-bar" style="height: ${Math.max(val, 6)}%"></div>
-            </div>
-          `).join("");
+          if (coresContainer.children.length === cpu.cores.length) {
+            cpu.cores.forEach((val, idx) => {
+              const item = coresContainer.children[idx];
+              if (item) {
+                item.title = `Core ${idx}: ${val}%`;
+                const bar = item.firstElementChild;
+                if (bar) bar.style.height = `${Math.max(val, 6)}%`;
+              }
+            });
+          } else {
+            coresContainer.innerHTML = cpu.cores.map((val, idx) => `
+              <div class="core-mini-item" title="Core ${idx}: ${val}%">
+                <div class="core-mini-bar" style="height: ${Math.max(val, 6)}%"></div>
+              </div>
+            `).join("");
+          }
         }
 
         if (this.cpuChart && cpu.history) {
@@ -203,17 +217,29 @@ export class DashboardComponent {
           ulBarEl.style.width = `${ulPct}%`;
         }
 
-        // Interface status pills
+        // Interface status pills (diffed in-place to avoid DOM thrashing)
         const ifaceContainer = document.getElementById("netInterfacesList");
         if (ifaceContainer && net.interfaces) {
-          ifaceContainer.innerHTML = net.interfaces
-            .filter(i => i.name !== "lo" && !i.name.startsWith("veth") && !i.name.startsWith("br-"))
-            .map(i => `
+          const activeIfaces = net.interfaces.filter(i => i.name !== "lo" && !i.name.startsWith("veth") && !i.name.startsWith("br-"));
+          const ifaceNames = activeIfaces.map(i => i.name).join(",");
+          if (this._lastIfaceNames !== ifaceNames || ifaceContainer.children.length !== activeIfaces.length) {
+            this._lastIfaceNames = ifaceNames;
+            ifaceContainer.innerHTML = activeIfaces.map(i => `
               <div class="iface-pill" title="${i.name} • Total: In ${formatBytes(i.rx_total)} / Out ${formatBytes(i.tx_total)}">
                 <span class="iface-name">${i.name}</span>
                 <span class="iface-speeds">↓${formatSpeed(i.rx_rate)} ↑${formatSpeed(i.tx_rate)}</span>
               </div>
             `).join("");
+          } else {
+            activeIfaces.forEach((i, idx) => {
+              const pill = ifaceContainer.children[idx];
+              if (pill) {
+                pill.title = `${i.name} • Total: In ${formatBytes(i.rx_total)} / Out ${formatBytes(i.tx_total)}`;
+                const speedsEl = pill.querySelector(".iface-speeds");
+                if (speedsEl) speedsEl.textContent = `↓${formatSpeed(i.rx_rate)} ↑${formatSpeed(i.tx_rate)}`;
+              }
+            });
+          }
         }
 
         if (this.netChart && net.rx_history && net.tx_history) {
@@ -262,15 +288,27 @@ export class DashboardComponent {
         }
       }
 
-      // Per-Core CPU Temperatures
+      // Per-Core CPU Temperatures (diffed in-place)
       if (metrics.cpu && metrics.cpu.core_temperatures) {
         const coreTempsContainer = document.getElementById("sensorCoreTemps");
         if (coreTempsContainer && metrics.cpu.core_temperatures.length > 0) {
-          coreTempsContainer.innerHTML = metrics.cpu.core_temperatures.map(c => `
-            <span class="sensor-chip ${this._getTempClass(c.temp)}">
-              ${c.label}: <strong>${c.temp}°C</strong>
-            </span>
-          `).join("");
+          const temps = metrics.cpu.core_temperatures;
+          if (coreTempsContainer.children.length === temps.length) {
+            temps.forEach((c, idx) => {
+              const chip = coreTempsContainer.children[idx];
+              if (chip) {
+                const targetClass = `sensor-chip ${this._getTempClass(c.temp)}`;
+                if (chip.className !== targetClass) chip.className = targetClass;
+                chip.innerHTML = `${c.label}: <strong>${c.temp}°C</strong>`;
+              }
+            });
+          } else {
+            coreTempsContainer.innerHTML = temps.map(c => `
+              <span class="sensor-chip ${this._getTempClass(c.temp)}">
+                ${c.label}: <strong>${c.temp}°C</strong>
+              </span>
+            `).join("");
+          }
         }
       }
 
@@ -297,85 +335,162 @@ export class DashboardComponent {
     if (!container) return;
 
     if (!devices || devices.length === 0) {
+      this._lastStorageHash = "";
+      this._lastStorageStruct = "";
       container.innerHTML = `<div class="empty-state">No storage devices detected.</div>`;
       return;
     }
 
-    container.innerHTML = devices.map(dev => {
-      const isUsb = dev.transport === "usb";
-      const badgeClass = isUsb ? "badge-usb" : "badge-nvme";
-      const transportLabel = isUsb ? "USB External" : (dev.transport === "nvme" ? "NVMe" : "Internal");
+    const fullHash = JSON.stringify(devices.map(d => [
+      d.name, d.read_speed, d.write_speed, d.temperature,
+      (d.partitions || []).map(p => [p.name, p.usage_percent, p.used_bytes, p.free_bytes, p.read_speed, p.write_speed])
+    ]));
+
+    if (this._lastStorageHash === fullHash) return;
+    this._lastStorageHash = fullHash;
+
+    const structSig = devices.map(d => `${d.name}:${(d.partitions || []).map(p => `${p.name}:${p.mounted}`).join(",")}`).join(";");
+
+    // Rebuild DOM only when drive or partition topology changes
+    if (this._lastStorageStruct !== structSig || container.children.length !== devices.length) {
+      this._lastStorageStruct = structSig;
+      container.innerHTML = devices.map(dev => {
+        const isUsb = dev.transport === "usb";
+        const badgeClass = isUsb ? "badge-usb" : "badge-nvme";
+        const transportLabel = isUsb ? "USB External" : (dev.transport === "nvme" ? "NVMe" : "Internal");
+
+        const devReadActive = dev.read_speed && dev.read_speed > 1024;
+        const devWriteActive = dev.write_speed && dev.write_speed > 1024;
+
+        const partitionsHtml = (dev.partitions || []).map(p => {
+          const usedStr = formatBytes(p.used_bytes);
+          const totalStr = formatBytes(p.total_bytes);
+          const freeStr = formatBytes(p.free_bytes);
+          const isMounted = p.mounted && p.mountpoint;
+          
+          const partReadActive = p.read_speed && p.read_speed > 1024;
+          const partWriteActive = p.write_speed && p.write_speed > 1024;
+
+          return `
+            <div class="partition-item" data-part="${p.name}">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <div>
+                  <strong>${p.name}</strong>
+                  ${isMounted ? `<span style="color: var(--accent-primary); font-family: var(--font-mono); font-size: 0.8rem; margin-left: 0.5rem;">${p.mountpoint}</span>` : '<span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 0.5rem;">(Unmounted)</span>'}
+                </div>
+                <div style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted);">
+                  ${p.fstype || "raw"}
+                </div>
+              </div>
+
+              ${isMounted ? `
+                <div class="progress-bar-bg" style="height: 6px;">
+                  <div class="progress-bar-fill" data-field="part-bar" style="width: ${p.usage_percent}%; background-color: ${p.usage_percent > 90 ? 'var(--color-danger)' : (p.usage_percent > 75 ? 'var(--color-warning)' : 'var(--accent-primary)')};"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-secondary); font-family: var(--font-mono);">
+                  <span data-field="part-usage">${usedStr} / ${totalStr} (${p.usage_percent}%)</span>
+                  <span data-field="part-free">Free: ${freeStr}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.35rem; border-top: 1px dashed var(--border-color); padding-top: 0.25rem;">
+                  <span class="io-badge ${partReadActive ? 'active-read' : ''}" data-field="part-read">Read: ${formatSpeed(p.read_speed || 0)}</span>
+                  <span class="io-badge ${partWriteActive ? 'active-write' : ''}" data-field="part-write">Write: ${formatSpeed(p.write_speed || 0)}</span>
+                </div>
+              ` : `
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Capacity: ${totalStr}</div>
+              `}
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <div class="storage-card" data-dev="${dev.name}">
+            <div class="storage-card-header">
+              <div>
+                <div class="storage-drive-title">${dev.model}</div>
+                <div class="storage-drive-meta">${dev.device} • ${dev.type}</div>
+              </div>
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <span class="badge-tag ${badgeClass}">${transportLabel}</span>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+              <span>Serial: ${dev.serial}</span>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span data-field="dev-temp">${dev.temperature ? `Temp: <strong>${dev.temperature}°C</strong>` : ""}</span>
+                <span class="io-badge ${devReadActive ? 'active-read' : ''}" data-field="dev-read">R: ${formatSpeed(dev.read_speed || 0)}</span>
+                <span class="io-badge ${devWriteActive ? 'active-write' : ''}" data-field="dev-write">W: ${formatSpeed(dev.write_speed || 0)}</span>
+              </div>
+            </div>
+
+            <div class="partitions-wrapper">
+              ${partitionsHtml}
+            </div>
+          </div>
+        `;
+      }).join("");
+      return;
+    }
+
+    // In-place updates when topology is unchanged
+    devices.forEach(dev => {
+      const card = container.querySelector(`[data-dev="${dev.name}"]`);
+      if (!card) return;
 
       const devReadActive = dev.read_speed && dev.read_speed > 1024;
       const devWriteActive = dev.write_speed && dev.write_speed > 1024;
 
-      const partitionsHtml = (dev.partitions || []).map(p => {
-        const usedStr = formatBytes(p.used_bytes);
-        const totalStr = formatBytes(p.total_bytes);
-        const freeStr = formatBytes(p.free_bytes);
-        const isMounted = p.mounted && p.mountpoint;
-        
+      const tempEl = card.querySelector('[data-field="dev-temp"]');
+      if (tempEl) {
+        tempEl.innerHTML = dev.temperature ? `Temp: <strong>${dev.temperature}°C</strong>` : "";
+      }
+      const readEl = card.querySelector('[data-field="dev-read"]');
+      if (readEl) {
+        readEl.textContent = `R: ${formatSpeed(dev.read_speed || 0)}`;
+        readEl.className = `io-badge ${devReadActive ? 'active-read' : ''}`;
+      }
+      const writeEl = card.querySelector('[data-field="dev-write"]');
+      if (writeEl) {
+        writeEl.textContent = `W: ${formatSpeed(dev.write_speed || 0)}`;
+        writeEl.className = `io-badge ${devWriteActive ? 'active-write' : ''}`;
+      }
+
+      (dev.partitions || []).forEach(p => {
+        const partEl = card.querySelector(`[data-part="${p.name}"]`);
+        if (!partEl || !p.mounted) return;
+
         const partReadActive = p.read_speed && p.read_speed > 1024;
         const partWriteActive = p.write_speed && p.write_speed > 1024;
 
-        return `
-          <div class="partition-item">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-              <div>
-                <strong>${p.name}</strong>
-                ${isMounted ? `<span style="color: var(--accent-primary); font-family: var(--font-mono); font-size: 0.8rem; margin-left: 0.5rem;">${p.mountpoint}</span>` : '<span style="color: var(--text-muted); font-size: 0.78rem; margin-left: 0.5rem;">(Unmounted)</span>'}
-              </div>
-              <div style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted);">
-                ${p.fstype || "raw"}
-              </div>
-            </div>
+        const barEl = partEl.querySelector('[data-field="part-bar"]');
+        if (barEl) {
+          barEl.style.width = `${p.usage_percent}%`;
+          barEl.style.backgroundColor = p.usage_percent > 90 ? 'var(--color-danger)' : (p.usage_percent > 75 ? 'var(--color-warning)' : 'var(--accent-primary)');
+        }
 
-            ${isMounted ? `
-              <div class="progress-bar-bg" style="height: 6px;">
-                <div class="progress-bar-fill" style="width: ${p.usage_percent}%; background-color: ${p.usage_percent > 90 ? 'var(--color-danger)' : (p.usage_percent > 75 ? 'var(--color-warning)' : 'var(--accent-primary)')};"></div>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-secondary); font-family: var(--font-mono);">
-                <span>${usedStr} / ${totalStr} (${p.usage_percent}%)</span>
-                <span>Free: ${freeStr}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.35rem; border-top: 1px dashed var(--border-color); padding-top: 0.25rem;">
-                <span class="io-badge ${partReadActive ? 'active-read' : ''}">Read: ${formatSpeed(p.read_speed || 0)}</span>
-                <span class="io-badge ${partWriteActive ? 'active-write' : ''}">Write: ${formatSpeed(p.write_speed || 0)}</span>
-              </div>
-            ` : `
-              <div style="font-size: 0.8rem; color: var(--text-muted);">Capacity: ${totalStr}</div>
-            `}
-          </div>
-        `;
-      }).join("");
+        const usageEl = partEl.querySelector('[data-field="part-usage"]');
+        if (usageEl) {
+          usageEl.textContent = `${formatBytes(p.used_bytes)} / ${formatBytes(p.total_bytes)} (${p.usage_percent}%)`;
+        }
 
-      return `
-        <div class="storage-card">
-          <div class="storage-card-header">
-            <div>
-              <div class="storage-drive-title">${dev.model}</div>
-              <div class="storage-drive-meta">${dev.device} • ${dev.type}</div>
-            </div>
-            <div style="display: flex; gap: 0.4rem; align-items: center;">
-              <span class="badge-tag ${badgeClass}">${transportLabel}</span>
-            </div>
-          </div>
+        const freeEl = partEl.querySelector('[data-field="part-free"]');
+        if (freeEl) {
+          freeEl.textContent = `Free: ${formatBytes(p.free_bytes)}`;
+        }
 
-          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-            <span>Serial: ${dev.serial}</span>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              ${dev.temperature ? `<span>Temp: <strong>${dev.temperature}°C</strong></span>` : ""}
-              <span class="io-badge ${devReadActive ? 'active-read' : ''}">R: ${formatSpeed(dev.read_speed || 0)}</span>
-              <span class="io-badge ${devWriteActive ? 'active-write' : ''}">W: ${formatSpeed(dev.write_speed || 0)}</span>
-            </div>
-          </div>
+        const pReadEl = partEl.querySelector('[data-field="part-read"]');
+        if (pReadEl) {
+          pReadEl.textContent = `Read: ${formatSpeed(p.read_speed || 0)}`;
+          pReadEl.className = `io-badge ${partReadActive ? 'active-read' : ''}`;
+        }
 
-          <div class="partitions-wrapper">
-            ${partitionsHtml}
-          </div>
-        </div>
-      `;
-    }).join("");
+        const pWriteEl = partEl.querySelector('[data-field="part-write"]');
+        if (pWriteEl) {
+          pWriteEl.textContent = `Write: ${formatSpeed(p.write_speed || 0)}`;
+          pWriteEl.className = `io-badge ${partWriteActive ? 'active-write' : ''}`;
+        }
+      });
+    });
   }
 }
 

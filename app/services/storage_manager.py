@@ -23,6 +23,7 @@ class StorageManagerService:
         self._last_stats_time = time.time()
         self._callbacks: List[Callable[[List[Dict[str, Any]]], None]] = []
         self._known_device_keys: Set[str] = set()
+        self._hwmon_disk_temp_paths: Dict[str, Optional[str]] = {}
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
@@ -62,27 +63,60 @@ class StorageManagerService:
             pass
         return stats
 
+    def _get_vfs_topology_fingerprint(self) -> tuple:
+        """Quickly fingerprints partitions and active mounts in-memory without spawning subprocesses."""
+        parts = ""
+        try:
+            with open("/proc/partitions", "r") as f:
+                parts = f.read()
+        except Exception:
+            pass
+        mounts = []
+        try:
+            with open("/proc/mounts", "r") as f:
+                for line in f:
+                    if line.startswith("/dev/"):
+                        mounts.append(line.split()[:2])
+        except Exception:
+            pass
+        return (parts, tuple(mounts))
+
     def _get_hwmon_disk_temp(self, dev_name: str) -> Optional[float]:
-        """Tries to find disk temperature in hwmon or sysfs without root."""
+        """Tries to find disk temperature in hwmon or sysfs without root, caching discovered paths."""
+        if dev_name in self._hwmon_disk_temp_paths:
+            p = self._hwmon_disk_temp_paths[dev_name]
+            if p and os.path.exists(p):
+                try:
+                    with open(p, "r") as tf:
+                        return round(float(tf.read().strip()) / 1000.0, 1)
+                except Exception:
+                    return None
+            return None
+
         # Check if nvme
         if dev_name.startswith("nvme"):
-            for h in os.listdir("/sys/class/hwmon"):
-                p = os.path.join("/sys/class/hwmon", h)
-                name_f = os.path.join(p, "name")
-                if os.path.exists(name_f):
-                    try:
-                        with open(name_f) as nf:
-                            if nf.read().strip() == "nvme":
-                                temp_f = os.path.join(p, "temp1_input")
-                                if os.path.exists(temp_f):
-                                    with open(temp_f) as tf:
-                                        return round(float(tf.read().strip()) / 1000.0, 1)
-                    except Exception:
-                        pass
+            hwmon_base = "/sys/class/hwmon"
+            if os.path.exists(hwmon_base):
+                for h in os.listdir(hwmon_base):
+                    p = os.path.join(hwmon_base, h)
+                    name_f = os.path.join(p, "name")
+                    if os.path.exists(name_f):
+                        try:
+                            with open(name_f) as nf:
+                                if nf.read().strip() == "nvme":
+                                    temp_f = os.path.join(p, "temp1_input")
+                                    if os.path.exists(temp_f):
+                                        self._hwmon_disk_temp_paths[dev_name] = temp_f
+                                        with open(temp_f) as tf:
+                                            return round(float(tf.read().strip()) / 1000.0, 1)
+                        except Exception:
+                            pass
+        self._hwmon_disk_temp_paths[dev_name] = None
         return None
 
     def refresh_devices(self) -> List[Dict[str, Any]]:
         """Scans block devices using lsblk -J and /proc/diskstats."""
+        self._hwmon_disk_temp_paths.clear()
         now = time.time()
         dt = max(now - self._last_stats_time, 0.1)
         current_diskstats = self._read_diskstats()
@@ -285,6 +319,7 @@ class StorageManagerService:
                     write_rate = max(curr["write_bytes"] - prev["write_bytes"], 0) / dt
                 dev["read_speed"] = round(read_rate, 1)
                 dev["write_speed"] = round(write_rate, 1)
+                dev["temperature"] = self._get_hwmon_disk_temp(kname)
 
                 for part in dev.get("partitions", []):
                     p_kname = part.get("kname") or part.get("name")
@@ -379,7 +414,7 @@ class StorageManagerService:
         self._running = False
 
     def _monitor_loop(self):
-        """Monitors kernel uevents and polls mounts for hot-plug events."""
+        """Monitors kernel uevents and polls mounts for hot-plug events without rapid subprocess spawning."""
         netlink_sock = None
         try:
             # AF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT (15)
@@ -388,6 +423,9 @@ class StorageManagerService:
             netlink_sock.setblocking(False)
         except Exception:
             netlink_sock = None
+
+        last_vfs_fp = self._get_vfs_topology_fingerprint()
+        last_full_scan_time = time.time()
 
         while self._running:
             try:
@@ -405,8 +443,19 @@ class StorageManagerService:
                         except (BlockingIOError, socket.error):
                             break
                             
-                # Refresh devices on uevent or every 3 seconds
-                self.refresh_devices()
+                now = time.time()
+                curr_vfs_fp = self._get_vfs_topology_fingerprint()
+                vfs_changed = (curr_vfs_fp != last_vfs_fp)
+                fallback_due = (now - last_full_scan_time >= 60.0)
+
+                # Only spawn 'lsblk' if an actual kernel event or partition/mount change was detected
+                if event_detected or vfs_changed or fallback_due:
+                    last_vfs_fp = curr_vfs_fp
+                    last_full_scan_time = now
+                    self.refresh_devices()
+                else:
+                    # Update live throughput counters in memory with zero subprocess forks
+                    self.update_io_stats()
             except Exception:
                 time.sleep(3.0)
 
