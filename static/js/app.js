@@ -58,16 +58,6 @@ class App {
   }
 
   setupEventListeners() {
-    // Navigation / Dock items
-    const navItems = document.querySelectorAll(".nav-item[data-view]");
-    navItems.forEach(item => {
-      item.addEventListener("click", (e) => {
-        e.preventDefault();
-        const view = item.dataset.view;
-        this.switchView(view);
-      });
-    });
-
     // Mobile nav toggle fallback
     const mobileToggle = document.getElementById("mobileNavToggle");
     const sidebar = document.getElementById("appSidebar");

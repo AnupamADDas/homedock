@@ -320,7 +320,10 @@ export class WindowManager {
 
   toggleWindow(id) {
     const winObj = this.windows[id];
-    if (!winObj) return;
+    if (!winObj) {
+      console.warn("Window not found:", id);
+      return;
+    }
 
     if (!winObj.isOpen) {
       this.openWindow(id);
@@ -335,44 +338,88 @@ export class WindowManager {
 
   openWindow(id) {
     const winObj = this.windows[id];
-    if (!winObj) return;
+    if (!winObj) {
+      console.warn("Window not found:", id);
+      return;
+    }
 
     winObj.isOpen = true;
     winObj.isMinimized = false;
     winObj.el.classList.remove("minimized");
     winObj.el.classList.add("active");
+    winObj.el.style.display = "flex";
 
-    // Center window if opened for first time or no inline pos
-    if (!winObj.el.style.left && !winObj.isMaximized) {
-      this.centerWindow(winObj.el);
+    // Set centered bounds if not maximized
+    if (!winObj.isMaximized) {
+      if (!winObj.el.style.left || !winObj.el.style.width) {
+        this.centerWindow(winObj.el);
+      }
     }
 
     this.focusWindow(id);
     this.updateDockState();
 
-    // Trigger component lifecycle
-    if (id === "files") {
-      fileManagerComponent.init();
-    } else if (id === "downloads") {
-      downloadManagerComponent.init();
-      downloadManagerComponent.fetchDefaultDir();
-      downloadManagerComponent.refresh();
-    } else if (id === "settings") {
-      settingsComponent.init();
-      settingsComponent.refresh();
+    // Trigger component lifecycle safely
+    try {
+      if (id === "files") {
+        fileManagerComponent.init();
+      } else if (id === "downloads") {
+        downloadManagerComponent.init();
+        downloadManagerComponent.fetchDefaultDir();
+        downloadManagerComponent.refresh();
+      } else if (id === "settings") {
+        settingsComponent.init();
+        settingsComponent.refresh();
+      }
+    } catch (err) {
+      console.error("Component init error:", id, err);
     }
   }
 
   centerWindow(el) {
-    const winW = Math.min(window.innerWidth * 0.92, 1100);
-    const winH = Math.min(window.innerHeight * 0.85, 780);
+    const winW = Math.min(Math.max(window.innerWidth * 0.88, 360), 1100);
+    const winH = Math.min(Math.max(window.innerHeight * 0.82, 320), 780);
     const left = Math.max(16, (window.innerWidth - winW) / 2);
     const top = Math.max(40, (window.innerHeight - winH) / 2);
 
-    el.style.width = `${winW}px`;
-    el.style.height = `${winH}px`;
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
+    el.style.width = `${Math.round(winW)}px`;
+    el.style.height = `${Math.round(winH)}px`;
+    el.style.left = `${Math.round(left)}px`;
+    el.style.top = `${Math.round(top)}px`;
+  }
+
+  restoreWindow(id) {
+    const winObj = this.windows[id];
+    if (!winObj) return;
+
+    winObj.isMinimized = false;
+    winObj.el.classList.remove("minimized");
+    winObj.el.classList.add("active");
+    winObj.el.style.display = "flex";
+    this.focusWindow(id);
+    this.updateDockState();
+  }
+
+  closeWindow(id) {
+    const winObj = this.windows[id];
+    if (!winObj) return;
+
+    winObj.isOpen = false;
+    winObj.isMinimized = false;
+    winObj.el.classList.remove("active", "minimized", "focused");
+    winObj.el.style.display = "none";
+
+    // Clear active window
+    if (this.activeWindow === id) {
+      const remaining = Object.keys(this.windows).filter(wId => this.windows[wId].isOpen && !this.windows[wId].isMinimized);
+      if (remaining.length > 0) {
+        this.focusWindow(remaining[remaining.length - 1]);
+      } else {
+        this.activeWindow = null;
+        this.setMenubarAppTitle("HomeDock");
+      }
+    }
+    this.updateDockState();
   }
 
   minimizeWindow(id) {
@@ -390,37 +437,6 @@ export class WindowManager {
     } else {
       this.activeWindow = null;
       this.setMenubarAppTitle("HomeDock");
-    }
-    this.updateDockState();
-  }
-
-  restoreWindow(id) {
-    const winObj = this.windows[id];
-    if (!winObj) return;
-
-    winObj.isMinimized = false;
-    winObj.el.classList.remove("minimized");
-    this.focusWindow(id);
-    this.updateDockState();
-  }
-
-  closeWindow(id) {
-    const winObj = this.windows[id];
-    if (!winObj) return;
-
-    winObj.isOpen = false;
-    winObj.isMinimized = false;
-    winObj.el.classList.remove("active", "minimized", "focused");
-
-    // Clear active window
-    if (this.activeWindow === id) {
-      const remaining = Object.keys(this.windows).filter(wId => this.windows[wId].isOpen && !this.windows[wId].isMinimized);
-      if (remaining.length > 0) {
-        this.focusWindow(remaining[remaining.length - 1]);
-      } else {
-        this.activeWindow = null;
-        this.setMenubarAppTitle("HomeDock");
-      }
     }
     this.updateDockState();
   }
