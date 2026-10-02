@@ -70,7 +70,10 @@ export function showConfirmDialog({
     }
 
     function cleanup() {
-      modal.classList.remove("active");
+      modal.classList.add("closing");
+      setTimeout(() => {
+        modal.classList.remove("active", "closing");
+      }, 180);
       if (keydownHandler) {
         document.removeEventListener("keydown", keydownHandler);
         keydownHandler = null;

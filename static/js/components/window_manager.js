@@ -22,6 +22,7 @@ export class WindowManager {
     this.setupClock();
     this.setupWindows();
     this.setupDock();
+    this.setupModals();
     this.setupMenubar();
     this.setupKeyboardShortcuts();
   }
@@ -62,6 +63,8 @@ export class WindowManager {
         isOpen: false,
         isMinimized: false,
         isMaximized: false,
+        isClosing: false,
+        isMinimizing: false,
         originalBounds: null
       };
 
@@ -164,6 +167,8 @@ export class WindowManager {
       });
     });
 
+    this.setupDockMagnification();
+
     // Rescan disks dock item (if present)
     const rescanBtn = document.getElementById("dockRescanBtn");
     if (rescanBtn) {
@@ -177,6 +182,105 @@ export class WindowManager {
         this.lockScreen();
       });
     }
+  }
+
+  bounceDockIcon(appId) {
+    const item = document.querySelector(`.macos-dock .dock-item[data-app="${appId}"]`);
+    if (item) {
+      item.classList.remove("dock-bouncing");
+      void item.offsetWidth;
+      item.classList.add("dock-bouncing");
+      setTimeout(() => {
+        item.classList.remove("dock-bouncing");
+      }, 1000);
+    }
+  }
+
+  setupDockMagnification() {
+    const dock = document.querySelector(".macos-dock");
+    if (!dock) return;
+
+    const items = Array.from(dock.querySelectorAll(".dock-item"));
+    const maxScale = 1.28;
+    const maxDistance = 115;
+
+    const resetScales = () => {
+      items.forEach(item => {
+        if (!item.classList.contains("dock-bouncing")) {
+          item.style.transform = "";
+        }
+      });
+    };
+
+    dock.addEventListener("mousemove", (e) => {
+      if (window.innerWidth <= 768) return;
+      if (document.body.classList.contains("window-dragging")) return;
+
+      const mouseX = e.clientX;
+      items.forEach(item => {
+        if (item.classList.contains("dock-bouncing")) return;
+        const rect = item.getBoundingClientRect();
+        const itemCenterX = rect.left + rect.width / 2;
+        const dist = Math.abs(mouseX - itemCenterX);
+
+        if (dist < maxDistance) {
+          const factor = Math.cos((dist / maxDistance) * (Math.PI / 2));
+          const scale = 1 + (maxScale - 1) * factor;
+          const translateY = -12 * factor;
+          item.style.transform = `translateY(${translateY.toFixed(1)}px) scale(${scale.toFixed(3)})`;
+        } else {
+          item.style.transform = "";
+        }
+      });
+    });
+
+    dock.addEventListener("mouseleave", () => {
+      resetScales();
+    });
+  }
+
+  setupModals() {
+    // Intercept modal close buttons with smooth macOS sheet exit
+    document.addEventListener("click", (e) => {
+      const closeBtn = e.target.closest(".modal-close, [data-modal-close]");
+      if (closeBtn) {
+        const modal = closeBtn.closest(".modal-overlay");
+        if (modal && modal.classList.contains("active") && !modal.classList.contains("closing")) {
+          e.preventDefault();
+          e.stopPropagation();
+          modal.classList.add("closing");
+          setTimeout(() => {
+            modal.classList.remove("active", "closing");
+          }, 180);
+        }
+      }
+    }, true);
+
+    // Backdrop click dismiss with animation
+    document.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal-overlay") && e.target.classList.contains("active") && !e.target.classList.contains("closing")) {
+        const modal = e.target;
+        modal.classList.add("closing");
+        setTimeout(() => {
+          modal.classList.remove("active", "closing");
+        }, 180);
+      }
+    });
+
+    // Escape key closes topmost active modal with animation
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const activeModals = Array.from(document.querySelectorAll(".modal-overlay.active:not(.closing)"));
+        if (activeModals.length > 0) {
+          const topModal = activeModals[activeModals.length - 1];
+          if (topModal.id === "confirmDialogModal") return;
+          topModal.classList.add("closing");
+          setTimeout(() => {
+            topModal.classList.remove("active", "closing");
+          }, 180);
+        }
+      }
+    });
   }
 
   async rescanDrives() {
@@ -345,10 +449,28 @@ export class WindowManager {
       return;
     }
 
+    if (winObj.isMinimized) {
+      this.restoreWindow(id);
+      return;
+    }
+
+    const wasClosed = !winObj.isOpen || winObj.isClosing;
+
     winObj.isOpen = true;
     winObj.isMinimized = false;
-    winObj.el.classList.remove("minimized");
+    winObj.isClosing = false;
+    winObj.isMinimizing = false;
+    winObj.el.classList.remove("minimized", "closing", "minimizing");
     winObj.el.classList.add("active");
+
+    if (wasClosed) {
+      winObj.el.classList.add("opening");
+      this.bounceDockIcon(id);
+      setTimeout(() => {
+        winObj.el.classList.remove("opening");
+      }, 300);
+    }
+
     winObj.el.style.display = "flex";
 
     // Set centered bounds if not maximized
@@ -394,26 +516,44 @@ export class WindowManager {
     const winObj = this.windows[id];
     if (!winObj) return;
 
+    winObj.isOpen = true;
     winObj.isMinimized = false;
-    winObj.el.classList.remove("minimized");
-    winObj.el.classList.add("active");
+    winObj.isMinimizing = false;
+    winObj.isClosing = false;
+    winObj.el.classList.remove("minimized", "minimizing", "closing");
+    winObj.el.classList.add("active", "restoring");
     winObj.el.style.display = "flex";
+
+    const dockItem = document.querySelector(`.macos-dock .dock-item[data-app="${id}"]`);
+    if (dockItem) {
+      const dockRect = dockItem.getBoundingClientRect();
+      const winRect = winObj.el.getBoundingClientRect();
+      const deltaX = (dockRect.left + dockRect.width / 2) - (winRect.left + winRect.width / 2);
+      winObj.el.style.setProperty("--dock-target-x", `${Math.round(deltaX)}px`);
+    } else {
+      winObj.el.style.setProperty("--dock-target-x", "0px");
+    }
+
     this.focusWindow(id);
     this.updateDockState();
+
+    setTimeout(() => {
+      winObj.el.classList.remove("restoring");
+    }, 300);
   }
 
   closeWindow(id) {
     const winObj = this.windows[id];
-    if (!winObj) return;
+    if (!winObj || !winObj.isOpen || winObj.isClosing) return;
 
-    winObj.isOpen = false;
-    winObj.isMinimized = false;
-    winObj.el.classList.remove("active", "minimized", "focused");
-    winObj.el.style.display = "none";
+    winObj.isClosing = true;
+    winObj.el.classList.remove("opening", "restoring", "animating-bounds");
+    winObj.el.classList.add("closing");
+    winObj.el.classList.remove("focused");
 
-    // Clear active window
+    // Clear active window and focus remaining
+    const remaining = Object.keys(this.windows).filter(wId => wId !== id && this.windows[wId].isOpen && !this.windows[wId].isMinimized && !this.windows[wId].isClosing);
     if (this.activeWindow === id) {
-      const remaining = Object.keys(this.windows).filter(wId => this.windows[wId].isOpen && !this.windows[wId].isMinimized);
       if (remaining.length > 0) {
         this.focusWindow(remaining[remaining.length - 1]);
       } else {
@@ -422,30 +562,66 @@ export class WindowManager {
       }
     }
     this.updateDockState();
+
+    setTimeout(() => {
+      if (winObj.isClosing) {
+        winObj.isOpen = false;
+        winObj.isClosing = false;
+        winObj.isMinimized = false;
+        winObj.el.classList.remove("active", "closing", "minimized", "focused");
+        winObj.el.style.display = "none";
+        this.updateDockState();
+      }
+    }, 200);
   }
 
   minimizeWindow(id) {
     const winObj = this.windows[id];
-    if (!winObj) return;
+    if (!winObj || !winObj.isOpen || winObj.isMinimized || winObj.isMinimizing || winObj.isClosing) return;
 
-    winObj.isMinimized = true;
-    winObj.el.classList.add("minimized");
+    winObj.isMinimizing = true;
+    winObj.el.classList.remove("opening", "restoring", "animating-bounds");
+    winObj.el.classList.add("minimizing");
     winObj.el.classList.remove("focused");
 
-    // Find next top open window to focus
-    const remaining = Object.keys(this.windows).filter(wId => this.windows[wId].isOpen && !this.windows[wId].isMinimized);
-    if (remaining.length > 0) {
-      this.focusWindow(remaining[remaining.length - 1]);
+    const dockItem = document.querySelector(`.macos-dock .dock-item[data-app="${id}"]`);
+    if (dockItem) {
+      const dockRect = dockItem.getBoundingClientRect();
+      const winRect = winObj.el.getBoundingClientRect();
+      const deltaX = (dockRect.left + dockRect.width / 2) - (winRect.left + winRect.width / 2);
+      winObj.el.style.setProperty("--dock-target-x", `${Math.round(deltaX)}px`);
     } else {
-      this.activeWindow = null;
-      this.setMenubarAppTitle("HomeDock");
+      winObj.el.style.setProperty("--dock-target-x", "0px");
+    }
+
+    const remaining = Object.keys(this.windows).filter(wId => wId !== id && this.windows[wId].isOpen && !this.windows[wId].isMinimized && !this.windows[wId].isMinimizing && !this.windows[wId].isClosing);
+    if (this.activeWindow === id) {
+      if (remaining.length > 0) {
+        this.focusWindow(remaining[remaining.length - 1]);
+      } else {
+        this.activeWindow = null;
+        this.setMenubarAppTitle("HomeDock");
+      }
     }
     this.updateDockState();
+
+    setTimeout(() => {
+      if (winObj.isMinimizing) {
+        winObj.isMinimized = true;
+        winObj.isMinimizing = false;
+        winObj.el.classList.remove("minimizing");
+        winObj.el.classList.add("minimized");
+        winObj.el.style.display = "none";
+        this.updateDockState();
+      }
+    }, 280);
   }
 
   toggleMaximizeWindow(id) {
     const winObj = this.windows[id];
     if (!winObj) return;
+
+    winObj.el.classList.add("animating-bounds");
 
     if (winObj.isMaximized) {
       // Restore previous bounds
@@ -474,6 +650,10 @@ export class WindowManager {
       winObj.el.style.width = "100vw";
       winObj.el.style.height = "calc(100vh - 30px)";
     }
+
+    setTimeout(() => {
+      winObj.el.classList.remove("animating-bounds");
+    }, 340);
   }
 
   focusWindow(id) {
@@ -541,13 +721,18 @@ export class WindowManager {
     const authContainer = document.getElementById("authContainer");
     const appContainer = document.getElementById("appContainer");
     if (authContainer && appContainer) {
+      authContainer.classList.remove("unlocking");
+      authContainer.classList.add("locking");
       authContainer.style.display = "flex";
-      appContainer.style.display = "none";
       const pwdInput = document.getElementById("loginPassword");
       if (pwdInput) {
         pwdInput.value = "";
         pwdInput.focus();
       }
+      setTimeout(() => {
+        appContainer.style.display = "none";
+        authContainer.classList.remove("locking");
+      }, 350);
     }
   }
 }

@@ -227,13 +227,43 @@ class App {
   }
 
   showAuthView() {
-    document.getElementById("authContainer").style.display = "flex";
-    document.getElementById("appContainer").style.display = "none";
+    const authContainer = document.getElementById("authContainer");
+    const appContainer = document.getElementById("appContainer");
+    if (authContainer && appContainer) {
+      authContainer.classList.remove("unlocking");
+      authContainer.classList.add("locking");
+      authContainer.style.display = "flex";
+      setTimeout(() => {
+        appContainer.style.display = "none";
+        authContainer.classList.remove("locking");
+      }, 350);
+    }
   }
 
   showAppView(user) {
-    document.getElementById("authContainer").style.display = "none";
-    document.getElementById("appContainer").style.display = "flex";
+    const authContainer = document.getElementById("authContainer");
+    const appContainer = document.getElementById("appContainer");
+
+    if (authContainer && authContainer.style.display !== "none") {
+      authContainer.classList.add("unlocking");
+      if (appContainer) {
+        appContainer.style.display = "flex";
+        appContainer.classList.add("desktop-entering");
+      }
+
+      setTimeout(() => {
+        if (authContainer) {
+          authContainer.style.display = "none";
+          authContainer.classList.remove("unlocking");
+        }
+        if (appContainer) {
+          appContainer.classList.remove("desktop-entering");
+        }
+      }, 380);
+    } else {
+      if (authContainer) authContainer.style.display = "none";
+      if (appContainer) appContainer.style.display = "flex";
+    }
 
     // Update user info across navigation, menubar & lock screen
     const nameEl = document.getElementById("sidebarUserName");

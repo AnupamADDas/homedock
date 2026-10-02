@@ -97,7 +97,12 @@ export class FolderBrowser {
   }
 
   close() {
-    if (this.modal) this.modal.classList.remove("active");
+    if (this.modal) {
+      this.modal.classList.add("closing");
+      setTimeout(() => {
+        this.modal.classList.remove("active", "closing");
+      }, 180);
+    }
     this.onSelectCallback = null;
   }
 

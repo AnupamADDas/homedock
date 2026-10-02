@@ -412,8 +412,7 @@ export function showToast(message, type = "info", duration = 3500) {
 
   container.appendChild(toast);
   setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateX(100%)";
-    setTimeout(() => toast.remove(), 250);
+    toast.classList.add("toast-exiting");
+    setTimeout(() => toast.remove(), 280);
   }, duration);
 }

@@ -234,6 +234,48 @@ input, textarea, select, [contenteditable="true"] {
     linear-gradient(140deg, #1e3a70 0%, #162c58 20%, #101f42 42%, #0b152e 68%, #070d1e 85%, #030612 100%);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
+  transition: opacity 0.38s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1), filter 0.38s ease;
+}
+
+.auth-container.macos-lockscreen.unlocking {
+  opacity: 0 !important;
+  transform: scale(1.05) translateY(-20px) !important;
+  filter: blur(14px) !important;
+  pointer-events: none !important;
+}
+
+.auth-container.macos-lockscreen.locking {
+  animation: macosLockEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes macosLockEnter {
+  0% {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+#appContainer.desktop-entering {
+  animation: macosDesktopReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes macosDesktopReveal {
+  0% {
+    opacity: 0.6;
+    filter: blur(12px);
+    transform: scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
 }
 
 .macos-lock-header {
@@ -636,13 +678,13 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .macos-dropdown-menu.show {
-  display: flex;
-  animation: dropdownFadeIn 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex !important;
+  animation: macosMenuReveal 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes dropdownFadeIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes macosMenuReveal {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .dropdown-item {
@@ -1100,8 +1142,8 @@ input, textarea, select, [contenteditable="true"] {
   pointer-events: auto;
   opacity: 0;
   transform: scale(0.96);
-  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 100;
+  will-change: transform, opacity;
 }
 
 .macos-window.active {
@@ -1111,9 +1153,39 @@ input, textarea, select, [contenteditable="true"] {
   pointer-events: auto !important;
 }
 
+.macos-window.opening {
+  animation: macosWindowOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.macos-window.closing {
+  pointer-events: none !important;
+  animation: macosWindowClose 0.20s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+}
+
+.macos-window.minimizing {
+  pointer-events: none !important;
+  transform-origin: bottom center;
+  animation: macosWindowMinimize 0.28s cubic-bezier(0.35, 0, 0.25, 1) forwards !important;
+}
+
+.macos-window.restoring {
+  transform-origin: bottom center;
+  animation: macosWindowRestore 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.macos-window.animating-bounds {
+  transition: left 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              top 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease !important;
+}
+
 .macos-window.focused {
-  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.22);
-  border-color: rgba(147, 197, 253, 0.24);
+  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.24);
+  border-color: rgba(147, 197, 253, 0.26);
+  transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .macos-window.minimized {
@@ -1127,6 +1199,63 @@ input, textarea, select, [contenteditable="true"] {
   border-radius: 0;
   border: none;
   border-bottom: 1px solid var(--border-color);
+}
+
+@keyframes macosWindowOpen {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes macosWindowClose {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+}
+
+@keyframes macosWindowMinimize {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: blur(0px);
+  }
+  40% {
+    opacity: 0.85;
+    transform: translate(calc(var(--dock-target-x, 0px) * 0.4), 60px) scale(0.68);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dock-target-x, 0px), 160px) scale(0.12);
+    filter: blur(4px);
+  }
+}
+
+@keyframes macosWindowRestore {
+  0% {
+    opacity: 0;
+    transform: translate(var(--dock-target-x, 0px), 160px) scale(0.15);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translate(calc(var(--dock-target-x, 0px) * 0.15), 10px) scale(0.96);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: blur(0px);
+  }
 }
 
 .window-body {
@@ -1172,13 +1301,13 @@ body.window-dragging .window-titlebar {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .traffic-lights:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .traffic-btn {
@@ -1195,7 +1324,7 @@ body.window-dragging .window-titlebar {
   align-items: center;
   justify-content: center;
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.4, 1.1), filter 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.18s ease;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1219,9 +1348,10 @@ body.window-dragging .window-titlebar {
 }
 
 .traffic-btn:active {
-  transform: scale(0.92);
+  transform: scale(0.88) !important;
   filter: brightness(0.88);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+  transition: transform 0.08s ease;
 }
 
 .traffic-btn:focus-visible {
@@ -1238,7 +1368,8 @@ body.window-dragging .window-titlebar {
   bottom: 0;
   border-radius: 50%;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transform: scale(0.55);
+  transition: opacity 0.16s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
@@ -1246,10 +1377,12 @@ body.window-dragging .window-titlebar {
 
 .traffic-lights:hover .traffic-btn::before {
   opacity: 0.85;
+  transform: scale(1);
 }
 
 .traffic-lights .traffic-btn:hover::before {
   opacity: 1;
+  transform: scale(1.08);
 }
 
 .traffic-close {
@@ -1339,15 +1472,44 @@ body.window-dragging .window-titlebar {
   width: 52px;
   height: 58px;
   cursor: pointer;
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
 }
 
 .dock-item:hover {
-  transform: translateY(-8px) scale(1.15);
+  transform: translateY(-8px) scale(1.18);
 }
 
 .dock-item:active {
-  transform: translateY(-4px) scale(1.06);
+  transform: translateY(-3px) scale(1.06);
+}
+
+.dock-item.dock-bouncing {
+  animation: macosDockBounce 1s cubic-bezier(0.28, 0.84, 0.42, 1) !important;
+}
+
+@keyframes macosDockBounce {
+  0% {
+    transform: translateY(0);
+  }
+  18% {
+    transform: translateY(-24px) scale(1.12);
+  }
+  38% {
+    transform: translateY(0) scale(0.96);
+  }
+  56% {
+    transform: translateY(-12px) scale(1.06);
+  }
+  74% {
+    transform: translateY(0) scale(0.99);
+  }
+  88% {
+    transform: translateY(-4px) scale(1.02);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
 }
 
 .dock-icon {
@@ -1414,17 +1576,20 @@ body.window-dragging .window-titlebar {
   background: rgba(255, 255, 255, 0.7);
   margin-top: 4px;
   opacity: 0;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transform: scale(0.4);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.25s ease, box-shadow 0.25s ease;
 }
 
 .dock-item.running .dock-dot {
   opacity: 1;
+  transform: scale(1);
 }
 
 .dock-item.active .dock-dot {
   opacity: 1;
+  transform: scale(1.3);
   background: var(--accent-primary);
-  box-shadow: 0 0 8px var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
 }
 
 .dock-tooltip {
@@ -1990,12 +2155,26 @@ body.window-dragging .window-titlebar {
   justify-content: center;
   z-index: 2000;
   opacity: 0;
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .modal-overlay.active {
-  display: flex;
-  opacity: 1;
+  display: flex !important;
+  opacity: 1 !important;
+  animation: macosOverlayFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-overlay.active .modal {
+  animation: macosSheetZoomIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-overlay.closing {
+  display: flex !important;
+  pointer-events: none !important;
+  animation: macosOverlayFadeOut 0.18s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+}
+
+.modal-overlay.closing .modal {
+  animation: macosSheetZoomOut 0.18s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
 }
 
 .modal {
@@ -2009,11 +2188,38 @@ body.window-dragging .window-titlebar {
   box-shadow: var(--shadow-window);
   overflow: hidden;
   transform: scale(0.94);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modal-overlay.active .modal {
-  transform: scale(1);
+@keyframes macosOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes macosOverlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes macosSheetZoomIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-18px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes macosSheetZoomOut {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.93) translateY(-12px);
+  }
 }
 
 .modal-header {
@@ -2379,12 +2585,18 @@ body.window-dragging .window-titlebar {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: macosBannerIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes toastPop {
-  from { opacity: 0; transform: translateY(10px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+.toast.toast-exiting {
+  opacity: 0 !important;
+  transform: translateX(110%) scale(0.9) !important;
+}
+
+@keyframes macosBannerIn {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 .toast.toast-success { border-left: 4px solid var(--color-success); }
@@ -2499,5 +2711,21 @@ body.window-dragging .window-titlebar {
 
   .menubar-telemetry {
     display: none;
+  }
+}
+
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  .macos-window,
+  .dock-item,
+  .dock-dot,
+  .modal,
+  .modal-overlay,
+  .macos-dropdown-menu,
+  .toast,
+  .auth-container.macos-lockscreen,
+  #appContainer {
+    animation: none !important;
+    transition: none !important;
   }
 }
