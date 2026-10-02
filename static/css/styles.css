@@ -1176,17 +1176,13 @@ input, textarea, select, [contenteditable="true"] {
   will-change: transform;
 }
 
-/* Bypass expensive filters during active motion so GPU runs at 60fps/120fps with zero stutter */
+/* Disable pointer interactions during active motion transitions */
 .macos-window.opening,
 .macos-window.closing,
 .macos-window.minimizing,
 .macos-window.restoring,
-.macos-window.flipping,
-.macos-window.maximizing,
-.macos-window.unmaximizing {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
+.macos-window.flipping {
+  pointer-events: none !important;
 }
 
 .macos-window.focused {

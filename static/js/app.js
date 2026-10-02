@@ -3,15 +3,15 @@
  * Powered by macOS / UmbrelOS Desktop Architecture.
  */
 
-import { api, showToast } from "./api.js?v=macos_motion_v8";
-import { wsManager } from "./ws.js?v=macos_motion_v8";
-import { headerComponent } from "./components/header.js?v=macos_motion_v8";
-import { dashboardComponent } from "./components/dashboard.js?v=macos_motion_v8";
-import { fileManagerComponent } from "./components/files.js?v=macos_motion_v8";
-import { downloadManagerComponent } from "./components/downloads.js?v=macos_motion_v8";
-import { settingsComponent } from "./components/settings.js?v=macos_motion_v8";
-import { folderBrowser } from "./components/folder_browser.js?v=macos_motion_v8";
-import { windowManager } from "./components/window_manager.js?v=macos_motion_v8";
+import { api, showToast } from "./api.js?v=macos_motion_v9";
+import { wsManager } from "./ws.js?v=macos_motion_v9";
+import { headerComponent } from "./components/header.js?v=macos_motion_v9";
+import { dashboardComponent } from "./components/dashboard.js?v=macos_motion_v9";
+import { fileManagerComponent } from "./components/files.js?v=macos_motion_v9";
+import { downloadManagerComponent } from "./components/downloads.js?v=macos_motion_v9";
+import { settingsComponent } from "./components/settings.js?v=macos_motion_v9";
+import { folderBrowser } from "./components/folder_browser.js?v=macos_motion_v9";
+import { windowManager } from "./components/window_manager.js?v=macos_motion_v9";
 
 class App {
   constructor() {

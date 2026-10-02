@@ -4,11 +4,11 @@
  * traffic light controls, live menu bar clock, and desktop state.
  */
 
-import { fileManagerComponent } from "./files.js?v=macos_motion_v8";
-import { downloadManagerComponent } from "./downloads.js?v=macos_motion_v8";
-import { settingsComponent } from "./settings.js?v=macos_motion_v8";
-import { dashboardComponent } from "./dashboard.js?v=macos_motion_v8";
-import { api, showToast } from "../api.js?v=macos_motion_v8";
+import { fileManagerComponent } from "./files.js?v=macos_motion_v9";
+import { downloadManagerComponent } from "./downloads.js?v=macos_motion_v9";
+import { settingsComponent } from "./settings.js?v=macos_motion_v9";
+import { dashboardComponent } from "./dashboard.js?v=macos_motion_v9";
+import { api, showToast } from "../api.js?v=macos_motion_v9";
 
 export class WindowManager {
   constructor() {
@@ -500,6 +500,10 @@ export class WindowManager {
       }
     }
 
+    // Focus window immediately so shadow and z-index are active from frame 0
+    this.focusWindow(id);
+    this.updateDockState();
+
     if (wasClosed) {
       winObj.el.classList.add("opening");
       this.bounceDockIcon(id);
@@ -507,9 +511,6 @@ export class WindowManager {
         winObj.el.classList.remove("opening");
       }, 190);
     }
-
-    this.focusWindow(id);
-    this.updateDockState();
 
     // Trigger component lifecycle asynchronously so window animation is never blocked
     const initComponent = () => {
@@ -561,11 +562,11 @@ export class WindowManager {
     winObj.el.classList.add("active");
     winObj.el.style.display = "flex";
 
-    void winObj.el.offsetWidth; // Force reflow
-    winObj.el.classList.add("restoring");
-
     this.focusWindow(id);
     this.updateDockState();
+
+    void winObj.el.offsetWidth; // Force reflow
+    winObj.el.classList.add("restoring");
 
     setTimeout(() => {
       winObj.el.classList.remove("restoring");
