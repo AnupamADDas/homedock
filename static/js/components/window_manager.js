@@ -425,7 +425,7 @@ export class WindowManager {
 
     this.focusWindow(id);
     this.updateDockState();
-    animateElement(winObj.el, [
+    this.animateWindow(id, [
       { opacity: 0, transform: "translateY(18px) scale(0.96)" },
       { opacity: 1, transform: "none" },
     ], { duration: motion.enter });
@@ -460,14 +460,25 @@ export class WindowManager {
     ], { duration: 420 });
   }
 
+  animateWindow(id, frames, options = {}) {
+    const win = this.windows[id];
+    const sequence = win.motionSequence = (win.motionSequence || 0) + 1;
+    win.el.classList.add("window-geometry-motion");
+    return animateElement(win.el, frames, options).then(completed => {
+      // An interrupted transition must not strip the next one's cached layer.
+      if (sequence === win.motionSequence) win.el.classList.remove("window-geometry-motion");
+      return completed;
+    });
+  }
+
   dockTransform(id) {
     const win = this.windows[id].el;
     const dock = document.querySelector(`.dock-item[data-app="${id}"]`);
     if (!dock) return "translateY(48px) scale(0.9)";
     const target = dock.getBoundingClientRect();
     // Use layout bounds, unaffected by an interrupted window animation.
-    const x = target.left + target.width / 2 - (win.offsetLeft + win.offsetWidth / 2);
-    const y = target.top + target.height / 2 - (win.offsetTop + win.offsetHeight / 2);
+    const x = target.left + target.width / 2 - (win.offsetLeft + win.offsetWidth * 0.18 / 2);
+    const y = target.top + target.height / 2 - (win.offsetTop + win.offsetHeight * 0.18 / 2);
     return `translate(${x}px, ${y}px) scale(0.18)`;
   }
 
@@ -499,10 +510,10 @@ export class WindowManager {
     winObj.el.setAttribute("aria-hidden", "false");
     this.focusWindow(id);
     this.updateDockState();
-    animateElement(winObj.el, [
+    this.animateWindow(id, [
       { opacity: hidden ? 0 : opacity, transform: hidden ? this.dockTransform(id) : from },
       { opacity: 1, transform: "none" },
-    ], { duration: motion.enter });
+    ], { duration: motion.window });
   }
 
   closeWindow(id) {
@@ -528,7 +539,7 @@ export class WindowManager {
       cancelMotion(winObj.el);
       hide();
     } else {
-      animateElement(winObj.el, [
+      this.animateWindow(id, [
         { opacity, transform: from },
         { opacity: 0, transform: "translateY(8px) scale(0.97)" },
       ], { duration: motion.quick }).then(completed => { if (completed) hide(); });
@@ -559,7 +570,7 @@ export class WindowManager {
     winObj.el.classList.remove("focused");
     winObj.el.inert = true;
     winObj.el.setAttribute("aria-hidden", "true");
-    animateElement(winObj.el, [
+    this.animateWindow(id, [
       { opacity, transform: from },
       { opacity: 0, transform: this.dockTransform(id) },
     ], { duration: motion.standard }).then(completed => {
@@ -618,14 +629,13 @@ export class WindowManager {
     }
     const after = winObj.el.getBoundingClientRect();
     if (!after.width || !after.height) return;
+    // Mobile windows already fill their available space; don't animate a no-op.
+    if (["left", "top", "width", "height"].every(key => Math.abs(before[key] - after[key]) < 0.5)) return;
     // Set layout once, then animate the inverse transform on the compositor.
-    winObj.el.style.transformOrigin = "top left";
-    animateElement(winObj.el, [
+    this.animateWindow(id, [
       { transform: `translate(${before.left - after.left}px, ${before.top - after.top}px) scale(${before.width / after.width}, ${before.height / after.height})` },
       { transform: "none" },
-    ], { duration: motion.enter }).then(completed => {
-      if (completed) winObj.el.style.transformOrigin = "";
-    });
+    ], { duration: motion.window });
   }
 
   focusWindow(id) {

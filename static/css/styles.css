@@ -1095,9 +1095,10 @@ input, textarea, select, [contenteditable="true"] {
   flex-direction: column;
   width: min(1080px, 92vw);
   height: min(780px, 84vh);
-  background: rgba(8, 17, 36, 0.92);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: #081124;
+  /* An opaque surface needs no live backdrop capture when scaled. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-window);
@@ -1105,7 +1106,9 @@ input, textarea, select, [contenteditable="true"] {
   pointer-events: auto;
   opacity: 1;
   transform: none;
-  transition: border-color var(--motion-fast) ease;
+  transform-origin: top left;
+  /* Border transitions repaint the whole frame during maximize/restore. */
+  transition: none;
   z-index: 100;
 }
 
@@ -1115,7 +1118,7 @@ input, textarea, select, [contenteditable="true"] {
 }
 
 .macos-window.focused {
-  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.22);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(147, 197, 253, 0.22);
   border-color: rgba(147, 197, 253, 0.24);
 }
 
@@ -2614,7 +2617,7 @@ body.window-dragging .window-titlebar {
     linear-gradient(135deg, #f2f6ff, #e8eef9 55%, #f7f9fd);
 }
 [data-theme="light"] .card { box-shadow: 0 8px 28px rgba(30, 58, 112, 0.08), inset 0 1px 0 #fff; }
-[data-theme="light"] .macos-window { background: rgba(247, 249, 253, 0.96); }
+[data-theme="light"] .macos-window { background: #f7f9fd; }
 [data-theme="light"] .macos-window.focused { box-shadow: var(--shadow-window); border-color: var(--border-light); }
 [data-theme="light"] .window-titlebar, [data-theme="light"] .modal-header { background: var(--bg-secondary); }
 [data-theme="light"] .macos-dock { background: var(--glass-bg); border-color: var(--border-light); box-shadow: 0 12px 30px rgba(30, 58, 112, 0.16); }
@@ -2622,6 +2625,17 @@ body.window-dragging .window-titlebar {
 [data-theme="light"] .dock-item.active .dock-dot { background: var(--accent-primary); }
 [data-theme="light"] .btn-secondary { background: rgba(37, 99, 235, 0.06); border-color: var(--border-color); }
 [data-theme="light"] .btn-secondary:hover { background: rgba(37, 99, 235, 0.12); color: var(--text-primary); }
+
+/* Cache the window as one moving surface for geometry changes. */
+.macos-window.active.window-geometry-motion {
+  will-change: transform, opacity;
+}
+
+.macos-window .card {
+  /* Window cards already sit on a solid surface; nested blur adds raster work. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 
 @media (max-width: 1100px) { .menubar-telemetry { display: none; } }
 

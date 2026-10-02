@@ -25,7 +25,9 @@ const metrics = {
 async function main() {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
-    const file = path.resolve(root, url.pathname === "/" ? "static/index.html" : `.${url.pathname}`);
+    const file = url.pathname === "/" && process.env.UI_HTML_FILE
+      ? path.resolve(process.env.UI_HTML_FILE)
+      : path.resolve(root, url.pathname === "/" ? "static/index.html" : `.${url.pathname}`);
     if (!file.startsWith(root + path.sep)) { res.writeHead(403).end(); return; }
     try {
       const body = await fs.readFile(file);
@@ -126,6 +128,38 @@ async function main() {
     await settle();
     assert.equal(await page.locator("#windowFiles").evaluate(el => !el.inert && !el.classList.contains("window-exiting")), true);
     passed("window open/close/minimize interruption");
+
+    const geometry = await page.evaluate(() => {
+      const win = ui.manager.windows.files.el;
+      const before = win.getBoundingClientRect();
+      ui.manager.toggleMaximizeWindow("files");
+      const start = win.getBoundingClientRect();
+      const animations = win.getAnimations();
+      return {
+        keepsPosition: Math.abs(before.x - start.x) < 1 && Math.abs(before.width - start.width) < 1,
+        duration: Math.max(...animations.map(animation => animation.effect.getTiming().duration)),
+        repaintTransitions: animations.filter(animation => animation.transitionProperty?.startsWith("border")).length,
+        windowBlur: getComputedStyle(win).backdropFilter,
+        cardBlur: getComputedStyle(document.querySelector("#windowSettings .card")).backdropFilter,
+      };
+    });
+    assert.equal(geometry.keepsPosition, true, "The first zoom frame matches the previous window bounds");
+    assert.ok(geometry.duration <= 240, "Window resize responds quickly");
+    assert.equal(geometry.repaintTransitions, 0, "Resize must not start border-color repaint transitions");
+    assert.equal(geometry.windowBlur, "none");
+    assert.equal(geometry.cardBlur, "none");
+    await page.waitForTimeout(40);
+    const interruptedZoom = await page.evaluate(() => {
+      const win = ui.manager.windows.files.el;
+      const before = win.getBoundingClientRect();
+      ui.manager.toggleMaximizeWindow("files");
+      const after = win.getBoundingClientRect();
+      return Math.abs(before.x - after.x) < 1 && Math.abs(before.width - after.width) < 1;
+    });
+    assert.equal(interruptedZoom, true, "Reversing a resize starts at the current visual position");
+    await settle();
+    assert.equal(await page.locator("#windowFiles").evaluate(el => el.classList.contains("window-geometry-motion")), false);
+    passed("fast maximize/restore, compositor-only motion, reversal continuity, layer cleanup");
 
     await page.locator("#windowFiles .traffic-maximize").click();
     await settle();

@@ -9,6 +9,7 @@ export const motion = {
   quick: 160,
   standard: 260,
   enter: 360,
+  window: 220,
 };
 
 export function cancelMotion(element) {
