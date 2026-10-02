@@ -129,6 +129,54 @@ async function main() {
     assert.equal(await page.locator("#windowFiles").evaluate(el => !el.inert && !el.classList.contains("window-exiting")), true);
     passed("window open/close/minimize interruption");
 
+    const fileRequests = calls.filter(call => call.path === "/api/files/list").length;
+    await page.locator(".fm-item-checkbox").first().check();
+    await page.locator('[data-fm-view="grid"]').click();
+    assert.equal(await page.locator('[data-fm-view="grid"]').getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator("#fmTableBody").evaluate(el => getComputedStyle(el).display), "grid");
+    assert.equal(await page.locator(".fm-item-checkbox").first().isChecked(), true);
+    assert.equal(await page.locator(".file-row.selected").count(), 1);
+    assert.equal(await page.locator("#fmSelectAll").evaluate(el => el.indeterminate), true);
+    assert.equal(await page.locator(".folder-front").evaluate(el => getComputedStyle(el).fill), "rgb(107, 197, 248)");
+    await page.locator("#fmSelectAll").check();
+    assert.equal(await page.locator(".file-row.selected").count(), 2);
+    await page.locator('[data-fm-view="list"]').click();
+    assert.equal(await page.locator(".fm-item-checkbox:checked").count(), 2);
+    assert.equal(await page.locator("#fmTableBody").evaluate(el => getComputedStyle(el).display), "table-row-group");
+    assert.equal(calls.filter(call => call.path === "/api/files/list").length, fileRequests, "View changes preserve loaded files");
+    await page.locator('[data-fm-view="grid"]').click();
+    assert.equal(await page.evaluate(async () => {
+      const { FileManagerComponent } = await import("/static/js/components/files.js");
+      return new FileManagerComponent().viewMode;
+    }), "grid", "Saved preference survives a new component instance");
+    await page.locator('.file-row[data-isdir="true"] .file-name-cell').focus();
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => ui.files.currentPath === "/downloads/Documents");
+    assert.equal(await page.locator(".fm-item-checkbox:checked").count(), 0);
+    assert.equal(await page.locator("#fmContentArea").evaluate(el => el.classList.contains("fm-grid-view")), true);
+    await page.locator(".btn-copy").first().click();
+    assert.deepEqual(await page.evaluate(() => ui.files.clipboard.items), ["/downloads/Documents/Documents"]);
+    await page.locator(".btn-move").first().click();
+    assert.equal(await page.locator(".file-row.is-cut").count(), 1);
+    await page.locator('[data-fm-view="list"]').click();
+    assert.equal(await page.locator(".file-row.is-cut").count(), 1);
+    await page.evaluate(() => ui.files.clearClipboard());
+    await page.locator('[data-fm-view="grid"]').click();
+    await page.evaluate(() => { document.getElementById("fmContentArea").style.width = "320px"; });
+    assert.equal(await page.locator("#fmContentArea").evaluate(el => el.scrollWidth <= el.clientWidth), true, "Grid fits narrow windows");
+    await page.evaluate(() => {
+      document.getElementById("fmContentArea").style.width = "";
+      ui.files.renderFileList([]);
+    });
+    assert.equal(await page.locator(".fm-empty-row").innerText(), "Folder is empty");
+    await page.evaluate(() => ui.files.navigate("/downloads"));
+    await settle();
+    await fs.mkdir(previews, { recursive: true });
+    await page.locator("#windowFiles").screenshot({ path: path.join(previews, "files-grid.png") });
+    await page.locator('[data-fm-view="list"]').click();
+    await page.locator("#windowFiles").screenshot({ path: path.join(previews, "files-list.png") });
+    passed("file views, folder colors, selection, saved preference, keyboard navigation, clipboard, narrow grid and empty folder");
+
     const geometry = await page.evaluate(() => {
       const win = ui.manager.windows.files.el;
       const before = win.getBoundingClientRect();

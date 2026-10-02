@@ -19,6 +19,10 @@ export class FileManagerComponent {
     this.historyIndex = -1;
     this.selectedItems = new Set();
     this.showHidden = false;
+    this.viewMode = "list";
+    try {
+      if (localStorage.getItem("homedock.files.viewMode") === "grid") this.viewMode = "grid";
+    } catch { /* View switching also works when browser storage is unavailable. */ }
     this.clipboard = null; // { action: 'copy'|'move', items: [...] }
     this.mountedDrives = [];
     this.transferModalItems = [];
@@ -43,6 +47,11 @@ export class FileManagerComponent {
   }
 
   setupEventListeners() {
+    document.querySelectorAll("[data-fm-view]").forEach(button => {
+      button.addEventListener("click", () => this.setViewMode(button.dataset.fmView));
+    });
+    this.setViewMode(this.viewMode);
+
     // Dropzone for Drag-and-Drop upload
     const contentArea = document.getElementById("fmContentArea");
     const dropOverlay = document.getElementById("fmDropOverlay");
@@ -264,6 +273,18 @@ export class FileManagerComponent {
     }
   }
 
+  setViewMode(mode) {
+    if (mode !== "list" && mode !== "grid") return;
+    this.viewMode = mode;
+    document.getElementById("fmContentArea")?.classList.toggle("fm-grid-view", mode === "grid");
+    document.querySelectorAll("[data-fm-view]").forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.fmView === mode));
+    });
+    try {
+      localStorage.setItem("homedock.files.viewMode", mode);
+    } catch { /* Keep the selected view for this session. */ }
+  }
+
   renderStorageChips(chips) {
     const chipsContainer = document.getElementById("fmStorageChips");
     if (!chipsContainer) return;
@@ -366,13 +387,16 @@ export class FileManagerComponent {
   renderFileList(items) {
     const tableBody = document.getElementById("fmTableBody");
     const selectAll = document.getElementById("fmSelectAll");
-    if (selectAll) selectAll.checked = false;
+    if (selectAll) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    }
 
     if (!tableBody) return;
 
     if (!items || items.length === 0) {
       tableBody.innerHTML = `
-        <tr>
+        <tr class="fm-empty-row">
           <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
             Folder is empty
           </td>
@@ -383,11 +407,10 @@ export class FileManagerComponent {
 
     tableBody.innerHTML = items.map(item => {
       const isCut = this.clipboard && this.clipboard.action === "move" && this.clipboard.items.includes(item.path);
-      const iconClass = item.is_dir ? "folder" : (item.is_archive ? "archive" : "");
       let iconSvg = "";
 
       if (item.is_dir) {
-        iconSvg = `<svg class="file-icon folder" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>`;
+        iconSvg = `<svg class="file-icon folder" viewBox="0 0 24 24" aria-hidden="true"><path class="folder-back" d="M3 4h6.5l2 2H21a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/><path class="folder-front" d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/><path class="folder-highlight" d="M3 9h18"/></svg>`;
       } else if (item.is_archive) {
         iconSvg = `<svg class="file-icon archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8M1 3h22v5H1z"/><path d="M10 12h4"/></svg>`;
       } else {
@@ -396,23 +419,23 @@ export class FileManagerComponent {
 
       return `
         <tr class="file-row ${isCut ? 'is-cut' : ''}" data-path="${item.path}" data-isdir="${item.is_dir}" data-archive="${item.is_archive}">
-          <td style="width: 40px; text-align: center;">
-            <input type="checkbox" class="fm-item-checkbox" data-path="${item.path}">
+          <td class="fm-selection-cell">
+            <input type="checkbox" class="fm-item-checkbox" data-path="${item.path}" aria-label="Select item">
           </td>
           <td>
-            <div class="file-name-cell">
+            <button type="button" class="file-name-cell">
               ${iconSvg}
               <span class="file-item-name">${item.name}</span>
-            </div>
+            </button>
           </td>
-          <td style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-secondary);">
-            ${item.is_dir ? "--" : formatBytes(item.size)}
+          <td class="fm-size-cell">
+            ${item.is_dir ? "Folder" : formatBytes(item.size)}
           </td>
-          <td style="font-size: 0.82rem; color: var(--text-muted);">
+          <td class="fm-date-cell">
             ${formatDate(item.mtime)}
           </td>
-          <td style="text-align: right;">
-            <div class="file-item-actions" style="display: inline-flex; gap: 0.25rem;">
+          <td class="fm-actions-cell">
+            <div class="file-item-actions">
               ${!item.is_dir ? `
                 <a href="${api.getFileDownloadUrl(item.path)}" download class="btn btn-secondary btn-icon btn-sm" title="Download">
                   <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -525,6 +548,15 @@ export class FileManagerComponent {
     const count = this.selectedItems.size;
     const bulkBar = document.getElementById("fmBulkActions");
     const countSpan = document.getElementById("fmSelectedCount");
+    const checkboxes = document.querySelectorAll("#fmTableBody .fm-item-checkbox");
+    const selectAll = document.getElementById("fmSelectAll");
+    if (selectAll) {
+      selectAll.checked = checkboxes.length > 0 && count === checkboxes.length;
+      selectAll.indeterminate = count > 0 && count < checkboxes.length;
+    }
+    checkboxes.forEach(checkbox => {
+      checkbox.closest(".file-row").classList.toggle("selected", checkbox.checked);
+    });
 
     if (bulkBar && countSpan) {
       if (count > 0) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>HomeDock — Server Manager</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=motion_v1">
+  <link rel="stylesheet" href="/static/css/styles.css?v=files_views_v1">
 </head>
 <body>
   <!-- Ambient macOS Sonoma / Sequoia Wallpaper Background -->
@@ -425,6 +425,16 @@
                     <button id="fmToggleHiddenBtn" class="btn btn-secondary btn-sm" title="Show/Hide hidden files">
                       <span>.hidden</span>
                     </button>
+                    <div class="fm-view-switch" role="group" aria-label="File view">
+                      <button type="button" class="btn btn-sm" data-fm-view="list" aria-pressed="true" title="List view">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/></svg>
+                        <span>List</span>
+                      </button>
+                      <button type="button" class="btn btn-sm" data-fm-view="grid" aria-pressed="false" title="Grid view">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        <span>Grid</span>
+                      </button>
+                    </div>
 
                     <!-- Clipboard Bar -->
                     <div id="fmClipboardBar" class="fm-clipboard-bar" style="display: none;">
@@ -505,8 +515,8 @@
                   <table class="file-table">
                     <thead>
                       <tr>
-                        <th style="width: 40px; text-align: center;">
-                          <input type="checkbox" id="fmSelectAll">
+                        <th class="fm-select-heading">
+                          <label><input type="checkbox" id="fmSelectAll" aria-label="Select all items"><span class="fm-grid-select-label">Select all</span></label>
                         </th>
                         <th>Name</th>
                         <th style="width: 120px;">Size</th>
@@ -1363,6 +1373,6 @@
     <div id="toastContainer" class="toast-container"></div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=motion_v1"></script>
+  <script type="module" src="/static/js/app.js?v=files_views_v1"></script>
 </body>
 </html>
