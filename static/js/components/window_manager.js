@@ -4,11 +4,11 @@
  * traffic light controls, live menu bar clock, and desktop state.
  */
 
-import { fileManagerComponent } from "./files.js?v=macos_motion_v7";
-import { downloadManagerComponent } from "./downloads.js?v=macos_motion_v7";
-import { settingsComponent } from "./settings.js?v=macos_motion_v7";
-import { dashboardComponent } from "./dashboard.js?v=macos_motion_v7";
-import { api, showToast } from "../api.js?v=macos_motion_v7";
+import { fileManagerComponent } from "./files.js?v=macos_motion_v8";
+import { downloadManagerComponent } from "./downloads.js?v=macos_motion_v8";
+import { settingsComponent } from "./settings.js?v=macos_motion_v8";
+import { dashboardComponent } from "./dashboard.js?v=macos_motion_v8";
+import { api, showToast } from "../api.js?v=macos_motion_v8";
 
 export class WindowManager {
   constructor() {
@@ -189,11 +189,12 @@ export class WindowManager {
     if (item) {
       item.style.transform = "";
       item.classList.remove("dock-bouncing");
-      void item.offsetWidth;
-      item.classList.add("dock-bouncing");
-      setTimeout(() => {
-        item.classList.remove("dock-bouncing");
-      }, 1050);
+      requestAnimationFrame(() => {
+        item.classList.add("dock-bouncing");
+        setTimeout(() => {
+          item.classList.remove("dock-bouncing");
+        }, 700);
+      });
     }
   }
 
@@ -213,11 +214,14 @@ export class WindowManager {
       });
     };
 
-    dock.addEventListener("mousemove", (e) => {
-      if (window.innerWidth <= 768) return;
-      if (document.body.classList.contains("window-dragging")) return;
+    let rafId = null;
+    let pendingMouseX = null;
 
-      const mouseX = e.clientX;
+    const updateMagnification = () => {
+      rafId = null;
+      if (pendingMouseX === null) return;
+      const mouseX = pendingMouseX;
+
       items.forEach(item => {
         if (item.classList.contains("dock-bouncing")) return;
         const rect = item.getBoundingClientRect();
@@ -227,16 +231,41 @@ export class WindowManager {
         if (dist < maxDistance) {
           const factor = Math.cos((dist / maxDistance) * (Math.PI / 2));
           const scale = 1 + (maxScale - 1) * factor;
-          const translateY = -12 * factor;
+          const translateY = -10 * factor;
           item.style.transform = `translateY(${translateY.toFixed(1)}px) scale(${scale.toFixed(3)})`;
         } else {
           item.style.transform = "";
         }
       });
+    };
+
+    dock.addEventListener("mousemove", (e) => {
+      if (window.innerWidth <= 768) return;
+      if (document.body.classList.contains("window-dragging")) return;
+
+      pendingMouseX = e.clientX;
+      if (!rafId) {
+        rafId = requestAnimationFrame(updateMagnification);
+      }
     });
 
-    dock.addEventListener("mouseleave", resetScales);
-    dock.addEventListener("click", resetScales);
+    dock.addEventListener("mouseleave", () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      pendingMouseX = null;
+      resetScales();
+    });
+
+    dock.addEventListener("click", () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      pendingMouseX = null;
+      resetScales();
+    });
   }
 
   setupModals() {
@@ -472,31 +501,39 @@ export class WindowManager {
     }
 
     if (wasClosed) {
-      void winObj.el.offsetWidth; // Force synchronous reflow so browser renders display: flex first
       winObj.el.classList.add("opening");
       this.bounceDockIcon(id);
       setTimeout(() => {
         winObj.el.classList.remove("opening");
-      }, 340);
+      }, 190);
     }
 
     this.focusWindow(id);
     this.updateDockState();
 
-    // Trigger component lifecycle safely
-    try {
-      if (id === "files") {
-        fileManagerComponent.init();
-      } else if (id === "downloads") {
-        downloadManagerComponent.init();
-        downloadManagerComponent.fetchDefaultDir();
-        downloadManagerComponent.refresh();
-      } else if (id === "settings") {
-        settingsComponent.init();
-        settingsComponent.refresh();
+    // Trigger component lifecycle asynchronously so window animation is never blocked
+    const initComponent = () => {
+      try {
+        if (id === "files") {
+          fileManagerComponent.init();
+        } else if (id === "downloads") {
+          downloadManagerComponent.init();
+          downloadManagerComponent.fetchDefaultDir();
+          downloadManagerComponent.refresh();
+        } else if (id === "settings") {
+          settingsComponent.init();
+          settingsComponent.refresh();
+        }
+      } catch (err) {
+        console.error("Component init error:", id, err);
       }
-    } catch (err) {
-      console.error("Component init error:", id, err);
+    };
+
+    if (wasClosed) {
+      // 60ms delay lets GPU begin the 180ms window appearance smoothly
+      setTimeout(initComponent, 60);
+    } else {
+      initComponent();
     }
   }
 
@@ -520,7 +557,7 @@ export class WindowManager {
     winObj.isMinimized = false;
     winObj.isMinimizing = false;
     winObj.isClosing = false;
-    winObj.el.classList.remove("minimized", "minimizing", "closing", "opening", "maximizing", "unmaximizing", "animating-bounds");
+    winObj.el.classList.remove("minimized", "minimizing", "closing", "opening", "flipping", "animating-bounds");
     winObj.el.classList.add("active");
     winObj.el.style.display = "flex";
 
@@ -532,7 +569,7 @@ export class WindowManager {
 
     setTimeout(() => {
       winObj.el.classList.remove("restoring");
-    }, 220);
+    }, 190);
   }
 
   closeWindow(id) {
@@ -540,7 +577,7 @@ export class WindowManager {
     if (!winObj || !winObj.isOpen || winObj.isClosing) return;
 
     winObj.isClosing = true;
-    winObj.el.classList.remove("opening", "restoring", "maximizing", "unmaximizing", "animating-bounds");
+    winObj.el.classList.remove("opening", "restoring", "flipping", "animating-bounds");
     void winObj.el.offsetWidth; // Force reflow
     winObj.el.classList.add("closing");
     winObj.el.classList.remove("focused");
@@ -566,7 +603,7 @@ export class WindowManager {
         winObj.el.style.display = "none";
         this.updateDockState();
       }
-    }, 180);
+    }, 170);
   }
 
   minimizeWindow(id) {
@@ -574,7 +611,7 @@ export class WindowManager {
     if (!winObj || !winObj.isOpen || winObj.isMinimized || winObj.isMinimizing || winObj.isClosing) return;
 
     winObj.isMinimizing = true;
-    winObj.el.classList.remove("opening", "restoring", "maximizing", "unmaximizing", "animating-bounds");
+    winObj.el.classList.remove("opening", "restoring", "flipping", "animating-bounds");
 
     void winObj.el.offsetWidth; // Force reflow
     winObj.el.classList.add("minimizing");
@@ -600,20 +637,30 @@ export class WindowManager {
         winObj.el.style.display = "none";
         this.updateDockState();
       }
-    }, 200);
+    }, 190);
   }
 
   toggleMaximizeWindow(id) {
     const winObj = this.windows[id];
-    if (!winObj) return;
+    if (!winObj || winObj.isMinimizing || winObj.isClosing) return;
+
+    if (winObj.isMaximizing) return;
+    winObj.isMaximizing = true;
 
     const willMaximize = !winObj.isMaximized;
-    const animClass = willMaximize ? "maximizing" : "unmaximizing";
 
-    winObj.el.classList.remove("maximizing", "unmaximizing", "opening", "restoring", "animating-bounds");
+    // 1. FIRST: Capture starting visual rect
+    const firstRect = {
+      left: winObj.el.offsetLeft,
+      top: winObj.el.offsetTop,
+      width: winObj.el.offsetWidth,
+      height: winObj.el.offsetHeight
+    };
+
+    // 2. LAST: Apply target dimension bounds
+    winObj.el.classList.remove("flipping", "opening", "restoring", "closing", "minimizing");
 
     if (willMaximize) {
-      // Save current bounds & maximize
       winObj.originalBounds = {
         left: winObj.el.style.left,
         top: winObj.el.style.top,
@@ -627,7 +674,6 @@ export class WindowManager {
       winObj.el.style.width = "100vw";
       winObj.el.style.height = "calc(100vh - 30px)";
     } else {
-      // Restore previous bounds
       winObj.isMaximized = false;
       winObj.el.classList.remove("maximized");
       if (winObj.originalBounds) {
@@ -640,12 +686,41 @@ export class WindowManager {
       }
     }
 
-    void winObj.el.offsetWidth; // Force reflow
-    winObj.el.classList.add(animClass);
+    const lastRect = {
+      left: winObj.el.offsetLeft,
+      top: winObj.el.offsetTop,
+      width: winObj.el.offsetWidth,
+      height: winObj.el.offsetHeight
+    };
+
+    // 3. INVERT: Calculate delta and scale factors
+    const deltaX = firstRect.left - lastRect.left;
+    const deltaY = firstRect.top - lastRect.top;
+    const scaleX = firstRect.width / (lastRect.width || 1);
+    const scaleY = firstRect.height / (lastRect.height || 1);
+
+    // Apply inverted transform immediately with no transition
+    winObj.el.classList.add("flipping");
+    winObj.el.style.transformOrigin = "0 0";
+    winObj.el.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scaleX.toFixed(4)}, ${scaleY.toFixed(4)})`;
+    winObj.el.style.transition = "none";
+
+    // Force commit initial inverted position
+    void winObj.el.offsetWidth;
+
+    // 4. PLAY: Smoothly transition to identity on GPU
+    requestAnimationFrame(() => {
+      winObj.el.style.transition = "transform 0.18s cubic-bezier(0.16, 1, 0.3, 1)";
+      winObj.el.style.transform = "translate(0px, 0px) scale(1, 1)";
+    });
 
     setTimeout(() => {
-      winObj.el.classList.remove(animClass);
-    }, 220);
+      winObj.el.classList.remove("flipping");
+      winObj.el.style.transition = "";
+      winObj.el.style.transform = "";
+      winObj.el.style.transformOrigin = "";
+      winObj.isMaximizing = false;
+    }, 200);
   }
 
   focusWindow(id) {

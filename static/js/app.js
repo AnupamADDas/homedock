@@ -3,15 +3,15 @@
  * Powered by macOS / UmbrelOS Desktop Architecture.
  */
 
-import { api, showToast } from "./api.js?v=macos_motion_v7";
-import { wsManager } from "./ws.js?v=macos_motion_v7";
-import { headerComponent } from "./components/header.js?v=macos_motion_v7";
-import { dashboardComponent } from "./components/dashboard.js?v=macos_motion_v7";
-import { fileManagerComponent } from "./components/files.js?v=macos_motion_v7";
-import { downloadManagerComponent } from "./components/downloads.js?v=macos_motion_v7";
-import { settingsComponent } from "./components/settings.js?v=macos_motion_v7";
-import { folderBrowser } from "./components/folder_browser.js?v=macos_motion_v7";
-import { windowManager } from "./components/window_manager.js?v=macos_motion_v7";
+import { api, showToast } from "./api.js?v=macos_motion_v8";
+import { wsManager } from "./ws.js?v=macos_motion_v8";
+import { headerComponent } from "./components/header.js?v=macos_motion_v8";
+import { dashboardComponent } from "./components/dashboard.js?v=macos_motion_v8";
+import { fileManagerComponent } from "./components/files.js?v=macos_motion_v8";
+import { downloadManagerComponent } from "./components/downloads.js?v=macos_motion_v8";
+import { settingsComponent } from "./components/settings.js?v=macos_motion_v8";
+import { folderBrowser } from "./components/folder_browser.js?v=macos_motion_v8";
+import { windowManager } from "./components/window_manager.js?v=macos_motion_v8";
 
 class App {
   constructor() {
@@ -97,10 +97,13 @@ class App {
         if (errorEl) errorEl.style.display = "none";
 
         try {
-          await api.login(user, pass);
+          const res = await api.login(user, pass);
           localStorage.setItem("homedock_username", user);
           document.getElementById("loginPassword").value = "";
-          await this.checkAuth();
+          const userData = (res && res.user) ? res.user : { username: user, role: "admin" };
+          this.showAppView(userData);
+          wsManager.connect();
+          this.switchView("dashboard");
         } catch (err) {
           if (errorEl) {
             errorEl.textContent = err.message;
@@ -236,7 +239,7 @@ class App {
       setTimeout(() => {
         appContainer.style.display = "none";
         authContainer.classList.remove("locking");
-      }, 350);
+      }, 220);
     }
   }
 
@@ -259,7 +262,7 @@ class App {
         if (appContainer) {
           appContainer.classList.remove("desktop-entering");
         }
-      }, 380);
+      }, 220);
     } else {
       if (authContainer) authContainer.style.display = "none";
       if (appContainer) appContainer.style.display = "flex";
