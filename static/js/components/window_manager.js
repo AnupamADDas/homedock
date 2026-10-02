@@ -4,11 +4,11 @@
  * traffic light controls, live menu bar clock, and desktop state.
  */
 
-import { fileManagerComponent } from "./files.js";
-import { downloadManagerComponent } from "./downloads.js";
-import { settingsComponent } from "./settings.js";
-import { dashboardComponent } from "./dashboard.js";
-import { api, showToast } from "../api.js";
+import { fileManagerComponent } from "./files.js?v=macos_motion_v6";
+import { downloadManagerComponent } from "./downloads.js?v=macos_motion_v6";
+import { settingsComponent } from "./settings.js?v=macos_motion_v6";
+import { dashboardComponent } from "./dashboard.js?v=macos_motion_v6";
+import { api, showToast } from "../api.js?v=macos_motion_v6";
 
 export class WindowManager {
   constructor() {
@@ -187,12 +187,13 @@ export class WindowManager {
   bounceDockIcon(appId) {
     const item = document.querySelector(`.macos-dock .dock-item[data-app="${appId}"]`);
     if (item) {
+      item.style.transform = "";
       item.classList.remove("dock-bouncing");
       void item.offsetWidth;
       item.classList.add("dock-bouncing");
       setTimeout(() => {
         item.classList.remove("dock-bouncing");
-      }, 1000);
+      }, 1050);
     }
   }
 
@@ -234,9 +235,8 @@ export class WindowManager {
       });
     });
 
-    dock.addEventListener("mouseleave", () => {
-      resetScales();
-    });
+    dock.addEventListener("mouseleave", resetScales);
+    dock.addEventListener("click", resetScales);
   }
 
   setupModals() {
@@ -460,17 +460,8 @@ export class WindowManager {
     winObj.isMinimized = false;
     winObj.isClosing = false;
     winObj.isMinimizing = false;
-    winObj.el.classList.remove("minimized", "closing", "minimizing");
+    winObj.el.classList.remove("minimized", "closing", "minimizing", "restoring");
     winObj.el.classList.add("active");
-
-    if (wasClosed) {
-      winObj.el.classList.add("opening");
-      this.bounceDockIcon(id);
-      setTimeout(() => {
-        winObj.el.classList.remove("opening");
-      }, 300);
-    }
-
     winObj.el.style.display = "flex";
 
     // Set centered bounds if not maximized
@@ -478,6 +469,15 @@ export class WindowManager {
       if (!winObj.el.style.left || !winObj.el.style.width) {
         this.centerWindow(winObj.el);
       }
+    }
+
+    if (wasClosed) {
+      void winObj.el.offsetWidth; // Force synchronous reflow so browser renders display: flex first
+      winObj.el.classList.add("opening");
+      this.bounceDockIcon(id);
+      setTimeout(() => {
+        winObj.el.classList.remove("opening");
+      }, 340);
     }
 
     this.focusWindow(id);
@@ -520,8 +520,8 @@ export class WindowManager {
     winObj.isMinimized = false;
     winObj.isMinimizing = false;
     winObj.isClosing = false;
-    winObj.el.classList.remove("minimized", "minimizing", "closing");
-    winObj.el.classList.add("active", "restoring");
+    winObj.el.classList.remove("minimized", "minimizing", "closing", "opening");
+    winObj.el.classList.add("active");
     winObj.el.style.display = "flex";
 
     const dockItem = document.querySelector(`.macos-dock .dock-item[data-app="${id}"]`);
@@ -534,12 +534,15 @@ export class WindowManager {
       winObj.el.style.setProperty("--dock-target-x", "0px");
     }
 
+    void winObj.el.offsetWidth; // Force reflow
+    winObj.el.classList.add("restoring");
+
     this.focusWindow(id);
     this.updateDockState();
 
     setTimeout(() => {
       winObj.el.classList.remove("restoring");
-    }, 300);
+    }, 360);
   }
 
   closeWindow(id) {
@@ -548,6 +551,7 @@ export class WindowManager {
 
     winObj.isClosing = true;
     winObj.el.classList.remove("opening", "restoring", "animating-bounds");
+    void winObj.el.offsetWidth; // Force reflow
     winObj.el.classList.add("closing");
     winObj.el.classList.remove("focused");
 
@@ -572,7 +576,7 @@ export class WindowManager {
         winObj.el.style.display = "none";
         this.updateDockState();
       }
-    }, 200);
+    }, 240);
   }
 
   minimizeWindow(id) {
@@ -581,8 +585,6 @@ export class WindowManager {
 
     winObj.isMinimizing = true;
     winObj.el.classList.remove("opening", "restoring", "animating-bounds");
-    winObj.el.classList.add("minimizing");
-    winObj.el.classList.remove("focused");
 
     const dockItem = document.querySelector(`.macos-dock .dock-item[data-app="${id}"]`);
     if (dockItem) {
@@ -593,6 +595,10 @@ export class WindowManager {
     } else {
       winObj.el.style.setProperty("--dock-target-x", "0px");
     }
+
+    void winObj.el.offsetWidth; // Force reflow
+    winObj.el.classList.add("minimizing");
+    winObj.el.classList.remove("focused");
 
     const remaining = Object.keys(this.windows).filter(wId => wId !== id && this.windows[wId].isOpen && !this.windows[wId].isMinimized && !this.windows[wId].isMinimizing && !this.windows[wId].isClosing);
     if (this.activeWindow === id) {
@@ -614,7 +620,7 @@ export class WindowManager {
         winObj.el.style.display = "none";
         this.updateDockState();
       }
-    }, 280);
+    }, 340);
   }
 
   toggleMaximizeWindow(id) {
@@ -622,6 +628,7 @@ export class WindowManager {
     if (!winObj) return;
 
     winObj.el.classList.add("animating-bounds");
+    void winObj.el.offsetWidth; // Force reflow before changing bounds!
 
     if (winObj.isMaximized) {
       // Restore previous bounds
@@ -653,7 +660,7 @@ export class WindowManager {
 
     setTimeout(() => {
       winObj.el.classList.remove("animating-bounds");
-    }, 340);
+    }, 360);
   }
 
   focusWindow(id) {

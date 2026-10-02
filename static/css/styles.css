@@ -1148,37 +1148,41 @@ input, textarea, select, [contenteditable="true"] {
 
 .macos-window.active {
   display: flex !important;
-  opacity: 1 !important;
-  transform: scale(1) !important;
+  opacity: 1;
+  transform: scale(1);
   pointer-events: auto !important;
 }
 
 .macos-window.opening {
-  animation: macosWindowOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  display: flex !important;
+  animation: macosWindowOpen 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
 .macos-window.closing {
+  display: flex !important;
   pointer-events: none !important;
-  animation: macosWindowClose 0.20s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+  animation: macosWindowClose 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
 }
 
 .macos-window.minimizing {
+  display: flex !important;
   pointer-events: none !important;
   transform-origin: bottom center;
-  animation: macosWindowMinimize 0.28s cubic-bezier(0.35, 0, 0.25, 1) forwards !important;
+  animation: macosWindowMinimize 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
 }
 
 .macos-window.restoring {
+  display: flex !important;
   transform-origin: bottom center;
-  animation: macosWindowRestore 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  animation: macosWindowRestore 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
 .macos-window.animating-bounds {
-  transition: left 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              top 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              width 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              height 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-              border-radius 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+  transition: left 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+              top 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.34s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.25s ease !important;
 }
 
@@ -1204,7 +1208,7 @@ input, textarea, select, [contenteditable="true"] {
 @keyframes macosWindowOpen {
   0% {
     opacity: 0;
-    transform: scale(0.88) translateY(16px);
+    transform: scale(0.84) translateY(28px);
   }
   100% {
     opacity: 1;
@@ -1219,7 +1223,7 @@ input, textarea, select, [contenteditable="true"] {
   }
   100% {
     opacity: 0;
-    transform: scale(0.92) translateY(10px);
+    transform: scale(0.88) translateY(20px);
   }
 }
 
@@ -1229,13 +1233,13 @@ input, textarea, select, [contenteditable="true"] {
     transform: translate(0, 0) scale(1);
     filter: blur(0px);
   }
-  40% {
+  45% {
     opacity: 0.85;
-    transform: translate(calc(var(--dock-target-x, 0px) * 0.4), 60px) scale(0.68);
+    transform: translate(calc(var(--dock-target-x, 0px) * 0.45), 75px) scale(0.65);
   }
   100% {
     opacity: 0;
-    transform: translate(var(--dock-target-x, 0px), 160px) scale(0.12);
+    transform: translate(var(--dock-target-x, 0px), 180px) scale(0.08);
     filter: blur(4px);
   }
 }
@@ -1243,12 +1247,12 @@ input, textarea, select, [contenteditable="true"] {
 @keyframes macosWindowRestore {
   0% {
     opacity: 0;
-    transform: translate(var(--dock-target-x, 0px), 160px) scale(0.15);
+    transform: translate(var(--dock-target-x, 0px), 180px) scale(0.08);
     filter: blur(4px);
   }
   60% {
     opacity: 0.95;
-    transform: translate(calc(var(--dock-target-x, 0px) * 0.15), 10px) scale(0.96);
+    transform: translate(calc(var(--dock-target-x, 0px) * 0.12), 12px) scale(0.96);
     filter: blur(0px);
   }
   100% {
@@ -2711,21 +2715,5 @@ body.window-dragging .window-titlebar {
 
   .menubar-telemetry {
     display: none;
-  }
-}
-
-/* Accessibility: Respect Reduced Motion Preferences */
-@media (prefers-reduced-motion: reduce) {
-  .macos-window,
-  .dock-item,
-  .dock-dot,
-  .modal,
-  .modal-overlay,
-  .macos-dropdown-menu,
-  .toast,
-  .auth-container.macos-lockscreen,
-  #appContainer {
-    animation: none !important;
-    transition: none !important;
   }
 }
