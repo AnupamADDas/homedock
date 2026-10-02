@@ -12,6 +12,7 @@ import { downloadManagerComponent } from "./components/downloads.js";
 import { settingsComponent } from "./components/settings.js";
 import { folderBrowser } from "./components/folder_browser.js";
 import { windowManager } from "./components/window_manager.js";
+import { initMotion, showScreen, animateElement } from "./utils/motion.js";
 
 class App {
   constructor() {
@@ -19,6 +20,7 @@ class App {
   }
 
   async init() {
+    initMotion();
     this.setupTheme();
     this.setupEventListeners();
     windowManager.init();
@@ -39,6 +41,10 @@ class App {
         document.documentElement.setAttribute("data-theme", next);
         localStorage.setItem("homedock_theme", next);
         this.updateThemeIcon(next);
+        animateElement(themeToggleBtn, [
+          { transform: "rotate(-25deg) scale(0.85)" },
+          { transform: "none" },
+        ]);
       });
     }
   }
@@ -90,6 +96,12 @@ class App {
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
+        const submitButton = loginForm.querySelector("button[type=submit]");
+        if (submitButton?.disabled) return;
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.setAttribute("aria-busy", "true");
+        }
         const user = document.getElementById("loginUsername")?.value.trim() || "anupam";
         const pass = document.getElementById("loginPassword").value;
         const errorEl = document.getElementById("loginErrorMsg");
@@ -108,9 +120,16 @@ class App {
           }
           const lockCard = document.querySelector(".macos-lock-card");
           if (lockCard) {
-            lockCard.classList.remove("shake");
-            void lockCard.offsetWidth; // Reflow for animation trigger
-            lockCard.classList.add("shake");
+            animateElement(lockCard, [
+              { transform: "translateX(0)" }, { transform: "translateX(-6px)" },
+              { transform: "translateX(6px)" }, { transform: "translateX(-4px)" },
+              { transform: "translateX(4px)" }, { transform: "translateX(0)" },
+            ], { duration: 360, easing: "ease-in-out" });
+          }
+        } finally {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute("aria-busy");
           }
         }
       });
@@ -227,13 +246,11 @@ class App {
   }
 
   showAuthView() {
-    document.getElementById("authContainer").style.display = "flex";
-    document.getElementById("appContainer").style.display = "none";
+    showScreen("auth");
   }
 
   showAppView(user) {
-    document.getElementById("authContainer").style.display = "none";
-    document.getElementById("appContainer").style.display = "flex";
+    showScreen("app");
 
     // Update user info across navigation, menubar & lock screen
     const nameEl = document.getElementById("sidebarUserName");

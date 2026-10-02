@@ -4,6 +4,8 @@
  * drag-and-drop uploads, safe archive extraction, and bulk file operations.
  */
 
+import { openModal, closeModal, revealElements } from "../utils/motion.js";
+
 import { api, showToast } from "../api.js";
 import { formatBytes, formatDate, formatSpeed, formatTime } from "../utils/formatters.js";
 import { folderBrowser } from "./folder_browser.js";
@@ -32,9 +34,6 @@ export class FileManagerComponent {
   async init() {
     if (this.initialized) {
       await this.loadMountedDrives();
-      if (this.currentPath) {
-        await this.refresh();
-      }
       return;
     }
     this.initialized = true;
@@ -193,7 +192,8 @@ export class FileManagerComponent {
     document.addEventListener("keydown", (e) => {
       if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
       const fmView = document.getElementById("filesView");
-      if (!fmView || !fmView.classList.contains("active")) return;
+      if (!fmView || !fmView.closest(".macos-window.focused") || fmView.closest("[inert]")
+          || document.querySelector(".modal-overlay.active")) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         if (this.selectedItems.size > 0) {
@@ -305,8 +305,12 @@ export class FileManagerComponent {
   }
 
   async navigate(targetPath, pushHistory = true) {
+    const sequence = this._navigationSequence = (this._navigationSequence || 0) + 1;
+    const content = document.getElementById("fmContentArea");
+    content?.setAttribute("aria-busy", "true");
     try {
       const data = await api.listFiles(targetPath, this.showHidden);
+      if (sequence !== this._navigationSequence) return;
       this.currentPath = data.current_path;
       this.allowedRoots = data.allowed_roots || [];
 
@@ -327,7 +331,9 @@ export class FileManagerComponent {
       this.updateSelectionToolbar();
       this.updateClipboardToolbar();
     } catch (err) {
-      showToast(err.message, "error");
+      if (sequence === this._navigationSequence) showToast(err.message, "error");
+    } finally {
+      if (sequence === this._navigationSequence) content?.removeAttribute("aria-busy");
     }
   }
 
@@ -437,6 +443,8 @@ export class FileManagerComponent {
         </tr>
       `;
     }).join("");
+
+    revealElements(tableBody.querySelectorAll(".file-row"), { stagger: 18, distance: 6 });
 
     // Attach row click listeners
     tableBody.querySelectorAll(".file-row").forEach(row => {
@@ -939,7 +947,7 @@ export class FileManagerComponent {
           <div><strong>Modified:</strong> ${formatDate(info.modified)}</div>
         </div>
       `;
-      modal.classList.add("active");
+      openModal(modal);
     } catch (err) {
       showToast(err.message, "error");
     }
@@ -1098,12 +1106,12 @@ export class FileManagerComponent {
       });
     }
 
-    modal.classList.add("active");
+    openModal(modal);
   }
 
   closeTransferModal() {
     const modal = document.getElementById("fmTransferModal");
-    if (modal) modal.classList.remove("active");
+    if (modal) closeModal(modal);
     this.transferModalItems = [];
   }
 

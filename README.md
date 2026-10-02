@@ -329,6 +329,16 @@ cd ~/homedock
 python3 -m pytest tests/ -v
 ```
 
+For frontend motion and interaction checks, install Playwright as a development tool:
+
+```bash
+npm install --no-save --package-lock=false playwright
+npx playwright install chromium
+node tests/ui_motion.cjs
+```
+
+These browser checks use isolated API fixtures and cover window interruptions, dragging, resizing, download controls, nested dialogs, keyboard focus, themes, mobile layouts, and reduced motion. Screenshots are saved to `data/ui-motion-preview/`. Set `UI_BROWSER=chrome` to use an installed Chrome browser.
+
 ### Test Coverage (29 automated test cases):
 * `tests/test_auth.py`: Login, invalid credentials, IP brute-force lockout, session expiration, token revocation upon logout.
 * `tests/test_files.py`: File upload, chunked download, rename, copy, move, delete, `../../` path traversal blocking, symlink breakout prevention, and safe archive extraction.

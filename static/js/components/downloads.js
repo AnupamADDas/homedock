@@ -4,6 +4,8 @@
  * with per-download and global speed limit configurations.
  */
 
+import { openModal, closeModal, revealElements, reconcileContent } from "../utils/motion.js";
+
 import { api, showToast } from "../api.js";
 import { wsManager } from "../ws.js";
 import { formatBytes, formatSpeed, formatTime, parseSpeedLimitStr, formatSpeedLimitStr } from "../utils/formatters.js";
@@ -45,11 +47,11 @@ export class DownloadManagerComponent {
 
   async init() {
     if (this.initialized) return;
+    this.initialized = true;
     this.setupEventListeners();
     await this.fetchDefaultDir();
     await this.refresh();
     this.startLiveWatcher();
-    this.initialized = true;
   }
 
   async fetchDefaultDir() {
@@ -110,13 +112,14 @@ export class DownloadManagerComponent {
         if (ytDest) ytDest.value = "";
         const ytSaveDef = document.getElementById("checkYtSaveDefault");
         if (ytSaveDef) ytSaveDef.checked = false;
+        document.getElementById("btnYtModeVideo")?.click();
 
-        modal.classList.add("active");
+        openModal(modal);
       });
     }
 
     if (closeBtn && modal) {
-      closeBtn.addEventListener("click", () => modal.classList.remove("active"));
+      closeBtn.addEventListener("click", () => closeModal(modal));
     }
 
     // Browse Destination Directory Button
@@ -165,7 +168,7 @@ export class DownloadManagerComponent {
             window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: dest } }));
           }
 
-          modal.classList.remove("active");
+          closeModal(modal);
           addForm.reset();
           const destInput = document.getElementById("addDownloadDestInput");
           if (destInput) destInput.value = "";
@@ -208,7 +211,7 @@ export class DownloadManagerComponent {
           if (dlInput) dlInput.value = dlBytes > 0 ? (formatSpeedLimitStr(dlBytes) || "0") : "0";
           if (ulInput) ulInput.value = ulBytes > 0 ? (formatSpeedLimitStr(ulBytes) || "0") : "0";
           if (defaultDirInput) defaultDirInput.value = this.defaultDir || settings.default_download_dir || "";
-          globalLimitsModal.classList.add("active");
+          openModal(globalLimitsModal);
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -240,7 +243,7 @@ export class DownloadManagerComponent {
     }
 
     if (closeLimitsBtn && globalLimitsModal) {
-      closeLimitsBtn.addEventListener("click", () => globalLimitsModal.classList.remove("active"));
+      closeLimitsBtn.addEventListener("click", () => closeModal(globalLimitsModal));
     }
 
     if (saveLimitsBtn && globalLimitsModal) {
@@ -257,7 +260,7 @@ export class DownloadManagerComponent {
             await this.fetchDefaultDir();
           }
           showToast("Speed limits & download settings applied", "success");
-          globalLimitsModal.classList.remove("active");
+          closeModal(globalLimitsModal);
           await this.refresh();
         } catch (err) {
           showToast(err.message, "error");
@@ -272,7 +275,7 @@ export class DownloadManagerComponent {
     const taskSpeedClearBtn = document.getElementById("btnTaskSpeedClear");
 
     if (closeTaskSpeedBtn && taskSpeedModal) {
-      closeTaskSpeedBtn.addEventListener("click", () => taskSpeedModal.classList.remove("active"));
+      closeTaskSpeedBtn.addEventListener("click", () => closeModal(taskSpeedModal));
     }
 
     document.querySelectorAll(".speed-preset-btn").forEach(btn => {
@@ -290,7 +293,7 @@ export class DownloadManagerComponent {
         try {
           await api.setDownloadLimit(gid, 0);
           showToast("Speed limit cleared (unlimited)", "success");
-          taskSpeedModal.classList.remove("active");
+          closeModal(taskSpeedModal);
           await this.refresh();
         } catch (err) {
           showToast(err.message, "error");
@@ -307,7 +310,7 @@ export class DownloadManagerComponent {
         try {
           await api.setDownloadLimit(gid, limitBytes);
           showToast(limitBytes > 0 ? `Speed limit set to ${formatSpeedLimitStr(limitBytes)}` : "Speed limit removed (unlimited)", "success");
-          taskSpeedModal.classList.remove("active");
+          closeModal(taskSpeedModal);
           await this.refresh();
         } catch (err) {
           showToast(err.message, "error");
@@ -333,6 +336,7 @@ export class DownloadManagerComponent {
     const paneYt = document.getElementById("paneYoutubeDl");
 
     const switchTab = (mode) => {
+      if ((mode === "yt" ? tabYt : tabDirect)?.classList.contains("active")) return;
       if (mode === "yt") {
         tabYt?.classList.add("active");
         tabDirect?.classList.remove("active");
@@ -348,6 +352,7 @@ export class DownloadManagerComponent {
         if (paneDirect) paneDirect.style.display = "block";
         if (paneYt) paneYt.style.display = "none";
       }
+      revealElements([mode === "yt" ? paneYt : paneDirect].filter(Boolean), { distance: 8 });
     };
 
     tabDirect?.addEventListener("click", () => switchTab("direct"));
@@ -361,6 +366,7 @@ export class DownloadManagerComponent {
     const subWrap = document.getElementById("ytSubtitlesWrap");
 
     const setMediaMode = (mode) => {
+      if (this.ytMediaMode === mode) return;
       this.ytMediaMode = mode;
       if (mode === "audio") {
         btnAudio?.classList.add("active");
@@ -375,6 +381,7 @@ export class DownloadManagerComponent {
         if (audioControls) audioControls.style.display = "none";
         if (subWrap) subWrap.style.display = "flex";
       }
+      revealElements([mode === "audio" ? audioControls : videoControls].filter(Boolean), { distance: 6 });
     };
 
     btnVideo?.addEventListener("click", () => setMediaMode("video"));
@@ -551,7 +558,7 @@ export class DownloadManagerComponent {
             window.dispatchEvent(new CustomEvent("homedock:default_dir_changed", { detail: { dir: destDir } }));
           }
 
-          document.getElementById("addDownloadModal")?.classList.remove("active");
+          closeModal(document.getElementById("addDownloadModal"));
           ytForm.reset();
           if (previewCard) previewCard.style.display = "none";
           if (probeStatus) probeStatus.textContent = "";
@@ -719,7 +726,8 @@ export class DownloadManagerComponent {
       return;
     }
 
-    listContainer.innerHTML = filtered.map(item => {
+    const nextList = document.createElement("div");
+    nextList.innerHTML = filtered.map(item => {
       const isPaused = item.status === "paused";
       const isActive = item.status === "active";
       const isError = item.status === "error";
@@ -913,26 +921,50 @@ export class DownloadManagerComponent {
       `;
     }).join("");
 
-    // Hook listeners
+    const existing = new Map([...listContainer.querySelectorAll(".download-item")].map(row => [row.dataset.gid, row]));
+    const entering = [];
+    const nextRows = [...nextList.children];
+    const visibleIds = new Set(nextRows.map(row => row.dataset.gid));
+    [...listContainer.children].forEach(row => {
+      if (!visibleIds.has(row.dataset.gid)) row.remove();
+    });
+    nextRows.forEach((next, index) => {
+      const previous = existing.get(next.dataset.gid);
+      const row = previous || next;
+      if (previous) reconcileContent(previous, next);
+      else entering.push(row);
+      if (listContainer.children[index] !== row) listContainer.insertBefore(row, listContainer.children[index] || null);
+    });
+    revealElements(entering, { stagger: 25, distance: 8 });
+
+    // Hook listeners once on each control, including newly changed task actions.
     listContainer.querySelectorAll(".btn-pause-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", () => {
         api.pauseDownload(btn.dataset.gid).then(() => this.refresh());
       });
     });
 
     listContainer.querySelectorAll(".btn-unpause-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", () => {
         api.unpauseDownload(btn.dataset.gid).then(() => this.refresh());
       });
     });
 
     listContainer.querySelectorAll(".btn-retry-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", () => {
         api.retryDownload(btn.dataset.gid).then(() => this.refresh());
       });
     });
 
     listContainer.querySelectorAll(".btn-limit-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -953,11 +985,13 @@ export class DownloadManagerComponent {
         if (inputVal) {
           inputVal.value = currentBytes > 0 ? (formatSpeedLimitStr(currentBytes) || "0") : "0";
         }
-        if (taskSpeedModal) taskSpeedModal.classList.add("active");
+        if (taskSpeedModal) openModal(taskSpeedModal);
       });
     });
 
     listContainer.querySelectorAll(".btn-copy-path").forEach(span => {
+      if (span._downloadBound) return;
+      span._downloadBound = true;
       span.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -971,6 +1005,8 @@ export class DownloadManagerComponent {
     });
 
     listContainer.querySelectorAll(".btn-cancel-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -995,6 +1031,8 @@ export class DownloadManagerComponent {
     });
 
     listContainer.querySelectorAll(".btn-delete-dl").forEach(btn => {
+      if (btn._downloadBound) return;
+      btn._downloadBound = true;
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
         e.stopPropagation();

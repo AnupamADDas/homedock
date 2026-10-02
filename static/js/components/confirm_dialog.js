@@ -3,7 +3,10 @@
  * Replaces blocking browser confirm() with an accessible, styled modal.
  */
 
+import { openModal, closeModal } from "../utils/motion.js";
+
 let activeResolve = null;
+let activeCleanup = null;
 let keydownHandler = null;
 
 /**
@@ -28,8 +31,9 @@ export function showConfirmDialog({
   return new Promise((resolve) => {
     // If a previous dialog is somehow unresolved, resolve it with false
     if (activeResolve) {
-      activeResolve(false);
-      activeResolve = null;
+      const previousResolve = activeResolve;
+      activeCleanup?.();
+      previousResolve(false);
     }
 
     // Blur any currently focused element to prevent keyboard focus bounce
@@ -70,7 +74,7 @@ export function showConfirmDialog({
     }
 
     function cleanup() {
-      modal.classList.remove("active");
+      closeModal(modal);
       if (keydownHandler) {
         document.removeEventListener("keydown", keydownHandler);
         keydownHandler = null;
@@ -80,6 +84,7 @@ export function showConfirmDialog({
       okBtn?.removeEventListener("click", onOk);
       modal.removeEventListener("click", onBackdrop);
       activeResolve = null;
+      activeCleanup = null;
     }
 
     function onCancel() {
@@ -119,6 +124,7 @@ export function showConfirmDialog({
     };
 
     activeResolve = resolve;
+    activeCleanup = cleanup;
 
     closeBtn?.addEventListener("click", onCancel);
     cancelBtn?.addEventListener("click", onCancel);
@@ -126,7 +132,7 @@ export function showConfirmDialog({
     modal.addEventListener("click", onBackdrop);
     document.addEventListener("keydown", keydownHandler);
 
-    modal.classList.add("active");
+    openModal(modal);
     // Default focus to cancel button to safeguard destructive operations
     if (cancelBtn) {
       cancelBtn.focus();
