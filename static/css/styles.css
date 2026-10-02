@@ -1155,41 +1155,40 @@ input, textarea, select, [contenteditable="true"] {
 
 .macos-window.opening {
   display: flex !important;
-  animation: macosWindowOpen 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  animation: macosWindowOpen 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
 .macos-window.closing {
   display: flex !important;
   pointer-events: none !important;
-  animation: macosWindowClose 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
+  animation: macosWindowClose 0.18s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
 }
 
 .macos-window.minimizing {
   display: flex !important;
   pointer-events: none !important;
-  transform-origin: bottom center;
-  animation: macosWindowMinimize 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  animation: macosWindowMinimize 0.20s cubic-bezier(0.25, 0.1, 0.25, 1) forwards !important;
 }
 
 .macos-window.restoring {
   display: flex !important;
-  transform-origin: bottom center;
-  animation: macosWindowRestore 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  animation: macosWindowRestore 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
-.macos-window.animating-bounds {
-  transition: left 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-              top 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-              width 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-              height 0.34s cubic-bezier(0.16, 1, 0.3, 1),
-              border-radius 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.25s ease !important;
+.macos-window.maximizing {
+  display: flex !important;
+  animation: macosWindowMaximize 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.macos-window.unmaximizing {
+  display: flex !important;
+  animation: macosWindowUnmaximize 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
 .macos-window.focused {
   box-shadow: 0 36px 90px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(147, 197, 253, 0.24);
   border-color: rgba(147, 197, 253, 0.26);
-  transition: box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .macos-window.minimized {
@@ -1208,7 +1207,7 @@ input, textarea, select, [contenteditable="true"] {
 @keyframes macosWindowOpen {
   0% {
     opacity: 0;
-    transform: scale(0.84) translateY(28px);
+    transform: scale(0.92) translateY(16px);
   }
   100% {
     opacity: 1;
@@ -1223,42 +1222,51 @@ input, textarea, select, [contenteditable="true"] {
   }
   100% {
     opacity: 0;
-    transform: scale(0.88) translateY(20px);
+    transform: scale(0.94) translateY(12px);
   }
 }
 
 @keyframes macosWindowMinimize {
   0% {
     opacity: 1;
-    transform: translate(0, 0) scale(1);
-    filter: blur(0px);
-  }
-  45% {
-    opacity: 0.85;
-    transform: translate(calc(var(--dock-target-x, 0px) * 0.45), 75px) scale(0.65);
+    transform: translateY(0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(var(--dock-target-x, 0px), 180px) scale(0.08);
-    filter: blur(4px);
+    transform: translateY(48px) scale(0.88);
   }
 }
 
 @keyframes macosWindowRestore {
   0% {
     opacity: 0;
-    transform: translate(var(--dock-target-x, 0px), 180px) scale(0.08);
-    filter: blur(4px);
-  }
-  60% {
-    opacity: 0.95;
-    transform: translate(calc(var(--dock-target-x, 0px) * 0.12), 12px) scale(0.96);
-    filter: blur(0px);
+    transform: translateY(48px) scale(0.88);
   }
   100% {
     opacity: 1;
-    transform: translate(0, 0) scale(1);
-    filter: blur(0px);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes macosWindowMaximize {
+  0% {
+    opacity: 0.82;
+    transform: scale(0.96) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes macosWindowUnmaximize {
+  0% {
+    opacity: 0.88;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
