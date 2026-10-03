@@ -74,20 +74,30 @@ class App {
     }
 
     // Setup Lock Screen Username and initial
-    const savedUser = localStorage.getItem("homedock_username") || "anupam";
+    try {
+      localStorage.removeItem("homedock_username");
+    } catch (_) {}
+
+    const DEFAULT_LOCK_ICON = '<svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
     const unameInput = document.getElementById("loginUsername");
     const lockName = document.getElementById("lockUserName");
     const lockInitial = document.getElementById("lockUserAvatarInitial");
 
-    if (unameInput) unameInput.value = savedUser;
-    if (lockName) lockName.textContent = savedUser;
-    if (lockInitial) lockInitial.textContent = savedUser.charAt(0).toUpperCase();
+    if (unameInput) unameInput.value = "";
+    if (lockName) lockName.textContent = "Sign In";
+    if (lockInitial) lockInitial.innerHTML = DEFAULT_LOCK_ICON;
 
     if (unameInput) {
       unameInput.addEventListener("input", (e) => {
         const val = e.target.value.trim();
-        if (lockName) lockName.textContent = val || "User";
-        if (lockInitial) lockInitial.textContent = (val || "U").charAt(0).toUpperCase();
+        if (lockName) lockName.textContent = val || "Sign In";
+        if (lockInitial) {
+          if (val) {
+            lockInitial.textContent = val.charAt(0).toUpperCase();
+          } else {
+            lockInitial.innerHTML = DEFAULT_LOCK_ICON;
+          }
+        }
       });
     }
 
@@ -102,15 +112,26 @@ class App {
           submitButton.disabled = true;
           submitButton.setAttribute("aria-busy", "true");
         }
-        const user = document.getElementById("loginUsername")?.value.trim() || "anupam";
+        const user = document.getElementById("loginUsername")?.value.trim() || "";
         const pass = document.getElementById("loginPassword").value;
         const errorEl = document.getElementById("loginErrorMsg");
 
         if (errorEl) errorEl.style.display = "none";
 
+        if (!user || !pass) {
+          if (errorEl) {
+            errorEl.textContent = "Please enter both username and password";
+            errorEl.style.display = "block";
+          }
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute("aria-busy");
+          }
+          return;
+        }
+
         try {
           await api.login(user, pass);
-          localStorage.setItem("homedock_username", user);
           document.getElementById("loginPassword").value = "";
           await this.checkAuth();
         } catch (err) {
@@ -247,6 +268,25 @@ class App {
 
   showAuthView() {
     showScreen("auth");
+    const unameInput = document.getElementById("loginUsername");
+    const passInput = document.getElementById("loginPassword");
+    const lockName = document.getElementById("lockUserName");
+    const lockInitial = document.getElementById("lockUserAvatarInitial");
+    const errorEl = document.getElementById("loginErrorMsg");
+
+    if (unameInput) {
+      unameInput.value = "";
+      unameInput.focus();
+    }
+    if (passInput) passInput.value = "";
+    if (errorEl) {
+      errorEl.textContent = "";
+      errorEl.style.display = "none";
+    }
+    if (lockName) lockName.textContent = "Sign In";
+    if (lockInitial) {
+      lockInitial.innerHTML = '<svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    }
   }
 
   showAppView(user) {

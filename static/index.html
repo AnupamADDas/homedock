@@ -24,9 +24,11 @@
       <!-- Center User & Password Capsule Card -->
       <div class="macos-lock-card">
         <div class="macos-lock-avatar">
-          <span id="lockUserAvatarInitial" class="avatar-initial">A</span>
+          <span id="lockUserAvatarInitial" class="avatar-initial">
+            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
         </div>
-        <div id="lockUserName" class="macos-lock-name">anupam</div>
+        <div id="lockUserName" class="macos-lock-name">Sign In</div>
 
         <!-- Login Error Message -->
         <div id="loginErrorMsg" class="macos-login-error" style="display: none;"></div>
@@ -35,14 +37,14 @@
           <!-- Username Input -->
           <div class="form-group" style="margin-bottom: 0.65rem;">
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.6); text-align: left; margin-bottom: 0.25rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">Username</div>
-            <input type="text" id="loginUsername" class="macos-pill-input" autocomplete="username" required value="anupam" placeholder="Username">
+            <input type="text" id="loginUsername" class="macos-pill-input" autocomplete="username" required placeholder="Username" autofocus>
           </div>
 
           <!-- Password Capsule Input with Arrow Submit Button -->
           <div class="form-group" style="margin-bottom: 0;">
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.6); text-align: left; margin-bottom: 0.25rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em;">Password</div>
             <div class="macos-password-capsule">
-              <input type="password" id="loginPassword" class="macos-password-input" required autocomplete="current-password" placeholder="Enter Password" autofocus>
+              <input type="password" id="loginPassword" class="macos-password-input" required autocomplete="current-password" placeholder="Enter Password">
               <button type="submit" class="macos-password-submit" aria-label="Sign In" title="Sign In">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
               </button>

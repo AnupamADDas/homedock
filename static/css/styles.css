@@ -302,6 +302,10 @@ input, textarea, select, [contenteditable="true"] {
   font-weight: 700;
   color: #ffffff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .macos-lock-name {
