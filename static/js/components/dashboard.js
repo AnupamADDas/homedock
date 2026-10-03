@@ -388,13 +388,13 @@ export class DashboardComponent {
                 <div class="progress-bar-bg" style="height: 6px;">
                   <div class="progress-bar-fill" data-field="part-bar" style="width: ${p.usage_percent}%; background-color: ${p.usage_percent > 90 ? 'var(--color-danger)' : (p.usage_percent > 75 ? 'var(--color-warning)' : 'var(--accent-primary)')};"></div>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-secondary); font-family: var(--font-mono);">
+                <div class="partition-usage-row">
                   <span data-field="part-usage">${usedStr} / ${totalStr} (${p.usage_percent}%)</span>
                   <span data-field="part-free">Free: ${freeStr}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.35rem; border-top: 1px dashed var(--border-color); padding-top: 0.25rem;">
-                  <span class="io-badge ${partReadActive ? 'active-read' : ''}" data-field="part-read">Read: ${formatSpeed(p.read_speed || 0)}</span>
-                  <span class="io-badge ${partWriteActive ? 'active-write' : ''}" data-field="part-write">Write: ${formatSpeed(p.write_speed || 0)}</span>
+                <div class="partition-io-row">
+                  <span class="io-badge partition-io-badge ${partReadActive ? 'active-read' : ''}" data-field="part-read">Read: ${formatSpeed(p.read_speed || 0)}</span>
+                  <span class="io-badge partition-io-badge write-badge ${partWriteActive ? 'active-write' : ''}" data-field="part-write">Write: ${formatSpeed(p.write_speed || 0)}</span>
                 </div>
               ` : `
                 <div style="font-size: 0.8rem; color: var(--text-muted);">Capacity: ${totalStr}</div>
@@ -415,12 +415,12 @@ export class DashboardComponent {
               </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-              <span>Serial: ${dev.serial}</span>
-              <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <span data-field="dev-temp">${dev.temperature ? `Temp: <strong>${dev.temperature}°C</strong>` : ""}</span>
-                <span class="io-badge ${devReadActive ? 'active-read' : ''}" data-field="dev-read">R: ${formatSpeed(dev.read_speed || 0)}</span>
-                <span class="io-badge ${devWriteActive ? 'active-write' : ''}" data-field="dev-write">W: ${formatSpeed(dev.write_speed || 0)}</span>
+            <div class="storage-meta-row">
+              <span class="storage-serial">Serial: ${dev.serial}</span>
+              <div class="storage-stats-group">
+                <span class="storage-stat-temp" data-field="dev-temp">${dev.temperature ? `Temp: <strong>${dev.temperature}°C</strong>` : ""}</span>
+                <span class="io-badge storage-stat-speed ${devReadActive ? 'active-read' : ''}" data-field="dev-read">R: ${formatSpeed(dev.read_speed || 0)}</span>
+                <span class="io-badge storage-stat-speed ${devWriteActive ? 'active-write' : ''}" data-field="dev-write">W: ${formatSpeed(dev.write_speed || 0)}</span>
               </div>
             </div>
 
@@ -449,12 +449,12 @@ export class DashboardComponent {
       const readEl = card.querySelector('[data-field="dev-read"]');
       if (readEl) {
         readEl.textContent = `R: ${formatSpeed(dev.read_speed || 0)}`;
-        readEl.className = `io-badge ${devReadActive ? 'active-read' : ''}`;
+        readEl.className = `io-badge storage-stat-speed ${devReadActive ? 'active-read' : ''}`;
       }
       const writeEl = card.querySelector('[data-field="dev-write"]');
       if (writeEl) {
         writeEl.textContent = `W: ${formatSpeed(dev.write_speed || 0)}`;
-        writeEl.className = `io-badge ${devWriteActive ? 'active-write' : ''}`;
+        writeEl.className = `io-badge storage-stat-speed ${devWriteActive ? 'active-write' : ''}`;
       }
 
       (dev.partitions || []).forEach(p => {
@@ -483,13 +483,13 @@ export class DashboardComponent {
         const pReadEl = partEl.querySelector('[data-field="part-read"]');
         if (pReadEl) {
           pReadEl.textContent = `Read: ${formatSpeed(p.read_speed || 0)}`;
-          pReadEl.className = `io-badge ${partReadActive ? 'active-read' : ''}`;
+          pReadEl.className = `io-badge partition-io-badge ${partReadActive ? 'active-read' : ''}`;
         }
 
         const pWriteEl = partEl.querySelector('[data-field="part-write"]');
         if (pWriteEl) {
           pWriteEl.textContent = `Write: ${formatSpeed(p.write_speed || 0)}`;
-          pWriteEl.className = `io-badge ${partWriteActive ? 'active-write' : ''}`;
+          pWriteEl.className = `io-badge partition-io-badge write-badge ${partWriteActive ? 'active-write' : ''}`;
         }
       });
     });

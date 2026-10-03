@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>HomeDock — Server Manager</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=login_focus_v3">
+  <link rel="stylesheet" href="/static/css/styles.css?v=dashboard_stable_v1">
 </head>
 <body>
   <!-- Ambient macOS Sonoma / Sequoia Wallpaper Background -->
@@ -290,31 +290,33 @@
               </div>
               
               <!-- Download Meter -->
-              <div style="margin-bottom: 0.4rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
-                  <span><strong style="color: var(--color-success);">↓ DL</strong> <span id="netDownloadSpeed" style="font-weight: 600; color: var(--color-success);">0 B/s</span></span>
-                  <span id="netTotalRx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
+              <div class="net-meter-row">
+                <div class="net-meter-info">
+                  <strong style="color: var(--color-success);">↓ DL</strong>
+                  <span id="netDownloadSpeed" class="net-speed-val" style="color: var(--color-success);">0 B/s</span>
                 </div>
-                <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0;">
-                  <div id="netDownloadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
-                </div>
+                <span id="netTotalRx" class="net-total-val">Σ 0 B</span>
+              </div>
+              <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0.5rem;">
+                <div id="netDownloadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-success);"></div>
               </div>
 
               <!-- Upload Meter -->
-              <div style="margin-bottom: 0.65rem;">
-                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
-                  <span><strong style="color: var(--color-warning);">↑ UL</strong> <span id="netUploadSpeed" style="font-weight: 600; color: var(--color-warning);">0 B/s</span></span>
-                  <span id="netTotalTx" style="color: var(--text-muted); font-size: 0.75rem;">Σ 0 B</span>
+              <div class="net-meter-row">
+                <div class="net-meter-info">
+                  <strong style="color: var(--color-warning);">↑ UL</strong>
+                  <span id="netUploadSpeed" class="net-speed-val" style="color: var(--color-warning);">0 B/s</span>
                 </div>
-                <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0;">
-                  <div id="netUploadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-warning);"></div>
-                </div>
+                <span id="netTotalTx" class="net-total-val">Σ 0 B</span>
+              </div>
+              <div class="progress-bar-bg" style="height: 6px; margin-bottom: 0.65rem;">
+                <div id="netUploadBarFill" class="progress-bar-fill" style="width: 0%; background-color: var(--color-warning);"></div>
               </div>
 
               <div class="chart-container">
                 <canvas id="netHistoryChart"></canvas>
               </div>
-              <div id="netInterfacesList" style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.75rem;"></div>
+              <div id="netInterfacesList" class="net-interfaces-grid"></div>
             </div>
 
             <!-- 4. Sensors & Hardware Card -->
@@ -1375,6 +1377,6 @@
     <div id="toastContainer" class="toast-container"></div>
   </div>
 
-  <script type="module" src="/static/js/app.js?v=login_focus_v4"></script>
+  <script type="module" src="/static/js/app.js?v=dashboard_stable_v1"></script>
 </body>
 </html>
