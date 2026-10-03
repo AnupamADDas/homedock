@@ -4,6 +4,8 @@
  * subfolder listings, and on-the-fly directory creation.
  */
 
+import { openModal, closeModal, revealElements } from "../utils/motion.js";
+
 import { api, showToast } from "../api.js";
 
 export class FolderBrowser {
@@ -92,16 +94,18 @@ export class FolderBrowser {
     const titleEl = document.getElementById("folderBrowserTitle");
     if (titleEl) titleEl.textContent = title;
 
-    this.modal.classList.add("active");
+    openModal(this.modal);
     await this.loadDirectory(initialPath);
   }
 
   close() {
-    if (this.modal) this.modal.classList.remove("active");
+    if (this.modal) closeModal(this.modal);
+    this._navigationSequence = (this._navigationSequence || 0) + 1;
     this.onSelectCallback = null;
   }
 
   async loadDirectory(targetPath) {
+    const sequence = this._navigationSequence = (this._navigationSequence || 0) + 1;
     const dirListEl = document.getElementById("fbDirList");
     const crumbsEl = document.getElementById("fbBreadcrumbs");
     const quickLocsEl = document.getElementById("fbQuickLocations");
@@ -118,6 +122,7 @@ export class FolderBrowser {
 
     try {
       const data = await api.browseFolders(targetPath);
+      if (sequence !== this._navigationSequence) return;
       this.currentPath = data.current_path;
 
       if (pathDisplayEl) {
@@ -194,19 +199,22 @@ export class FolderBrowser {
         }
 
         dirListEl.innerHTML = itemsHtml;
+        revealElements(dirListEl.querySelectorAll(".fb-dir-item"), { stagger: 18, distance: 6 });
 
         dirListEl.querySelectorAll(".fb-dir-item").forEach(item => {
           item.addEventListener("click", () => this.loadDirectory(item.dataset.path));
         });
       }
     } catch (e) {
+      if (sequence !== this._navigationSequence) return;
       if (dirListEl) {
         dirListEl.innerHTML = `
           <div style="color: var(--color-danger); padding: 1.5rem; text-align: center;">
             <p>Error loading folder: ${e.message}</p>
-            <button type="button" class="btn btn-secondary btn-sm" style="margin-top: 0.5rem;" onclick="folderBrowser.loadDirectory('/')">Go to Root (/)</button>
+            <button type="button" class="btn btn-secondary btn-sm fb-retry" style="margin-top: 0.5rem;">Go to Root (/)</button>
           </div>
         `;
+        dirListEl.querySelector(".fb-retry")?.addEventListener("click", () => this.loadDirectory("/"));
       }
     }
   }

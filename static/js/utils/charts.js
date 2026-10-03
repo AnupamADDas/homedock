@@ -18,6 +18,8 @@ export class SparklineChart {
     
     this.width = 0;
     this.height = 0;
+    this._lastSeries = null;
+    this._lastSecondarySeries = null;
     this._resizeObserver = new ResizeObserver(() => this.resize());
     if (this.canvas.parentElement) {
       this._resizeObserver.observe(this.canvas.parentElement);
@@ -33,6 +35,7 @@ export class SparklineChart {
     const h = Math.floor(rect.height) || (parent ? parent.clientHeight : 70) || 70;
 
     if (w <= 0 || h <= 0) return;
+    if (this.width === w && this.height === h && this.canvas.width === w * dpr && this.canvas.height === h * dpr) return;
 
     this.width = w;
     this.height = h;
@@ -41,9 +44,12 @@ export class SparklineChart {
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (this._lastSeries) this.draw(this._lastSeries, this._lastSecondarySeries);
   }
 
   draw(dataSeries, secondarySeries = null) {
+    this._lastSeries = dataSeries;
+    this._lastSecondarySeries = secondarySeries;
     if (!this.width || !this.height || this.width < 10) {
       this.resize();
     }

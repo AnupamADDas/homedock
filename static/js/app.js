@@ -12,6 +12,7 @@ import { downloadManagerComponent } from "./components/downloads.js";
 import { settingsComponent } from "./components/settings.js";
 import { folderBrowser } from "./components/folder_browser.js";
 import { windowManager } from "./components/window_manager.js";
+import { initMotion, showScreen, animateElement } from "./utils/motion.js";
 
 class App {
   constructor() {
@@ -19,6 +20,7 @@ class App {
   }
 
   async init() {
+    initMotion();
     this.setupTheme();
     this.setupEventListeners();
     windowManager.init();
@@ -39,6 +41,10 @@ class App {
         document.documentElement.setAttribute("data-theme", next);
         localStorage.setItem("homedock_theme", next);
         this.updateThemeIcon(next);
+        animateElement(themeToggleBtn, [
+          { transform: "rotate(-25deg) scale(0.85)" },
+          { transform: "none" },
+        ]);
       });
     }
   }
@@ -68,20 +74,30 @@ class App {
     }
 
     // Setup Lock Screen Username and initial
-    const savedUser = localStorage.getItem("homedock_username") || "anupam";
+    try {
+      localStorage.removeItem("homedock_username");
+    } catch (_) {}
+
+    const DEFAULT_LOCK_ICON = '<svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
     const unameInput = document.getElementById("loginUsername");
     const lockName = document.getElementById("lockUserName");
     const lockInitial = document.getElementById("lockUserAvatarInitial");
 
-    if (unameInput) unameInput.value = savedUser;
-    if (lockName) lockName.textContent = savedUser;
-    if (lockInitial) lockInitial.textContent = savedUser.charAt(0).toUpperCase();
+    if (unameInput) unameInput.value = "";
+    if (lockName) lockName.textContent = "Sign In";
+    if (lockInitial) lockInitial.innerHTML = DEFAULT_LOCK_ICON;
 
     if (unameInput) {
       unameInput.addEventListener("input", (e) => {
         const val = e.target.value.trim();
-        if (lockName) lockName.textContent = val || "User";
-        if (lockInitial) lockInitial.textContent = (val || "U").charAt(0).toUpperCase();
+        if (lockName) lockName.textContent = val || "Sign In";
+        if (lockInitial) {
+          if (val) {
+            lockInitial.textContent = val.charAt(0).toUpperCase();
+          } else {
+            lockInitial.innerHTML = DEFAULT_LOCK_ICON;
+          }
+        }
       });
     }
 
@@ -90,15 +106,32 @@ class App {
     if (loginForm) {
       loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const user = document.getElementById("loginUsername")?.value.trim() || "anupam";
+        const submitButton = loginForm.querySelector("button[type=submit]");
+        if (submitButton?.disabled) return;
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.setAttribute("aria-busy", "true");
+        }
+        const user = document.getElementById("loginUsername")?.value.trim() || "";
         const pass = document.getElementById("loginPassword").value;
         const errorEl = document.getElementById("loginErrorMsg");
 
         if (errorEl) errorEl.style.display = "none";
 
+        if (!user || !pass) {
+          if (errorEl) {
+            errorEl.textContent = "Please enter both username and password";
+            errorEl.style.display = "block";
+          }
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute("aria-busy");
+          }
+          return;
+        }
+
         try {
           await api.login(user, pass);
-          localStorage.setItem("homedock_username", user);
           document.getElementById("loginPassword").value = "";
           await this.checkAuth();
         } catch (err) {
@@ -108,9 +141,16 @@ class App {
           }
           const lockCard = document.querySelector(".macos-lock-card");
           if (lockCard) {
-            lockCard.classList.remove("shake");
-            void lockCard.offsetWidth; // Reflow for animation trigger
-            lockCard.classList.add("shake");
+            animateElement(lockCard, [
+              { transform: "translateX(0)" }, { transform: "translateX(-6px)" },
+              { transform: "translateX(6px)" }, { transform: "translateX(-4px)" },
+              { transform: "translateX(4px)" }, { transform: "translateX(0)" },
+            ], { duration: 360, easing: "ease-in-out" });
+          }
+        } finally {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.removeAttribute("aria-busy");
           }
         }
       });
@@ -227,13 +267,30 @@ class App {
   }
 
   showAuthView() {
-    document.getElementById("authContainer").style.display = "flex";
-    document.getElementById("appContainer").style.display = "none";
+    showScreen("auth");
+    const unameInput = document.getElementById("loginUsername");
+    const passInput = document.getElementById("loginPassword");
+    const lockName = document.getElementById("lockUserName");
+    const lockInitial = document.getElementById("lockUserAvatarInitial");
+    const errorEl = document.getElementById("loginErrorMsg");
+
+    if (unameInput) {
+      unameInput.value = "";
+      unameInput.focus();
+    }
+    if (passInput) passInput.value = "";
+    if (errorEl) {
+      errorEl.textContent = "";
+      errorEl.style.display = "none";
+    }
+    if (lockName) lockName.textContent = "Sign In";
+    if (lockInitial) {
+      lockInitial.innerHTML = '<svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block; margin: auto;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>';
+    }
   }
 
   showAppView(user) {
-    document.getElementById("authContainer").style.display = "none";
-    document.getElementById("appContainer").style.display = "flex";
+    showScreen("app");
 
     // Update user info across navigation, menubar & lock screen
     const nameEl = document.getElementById("sidebarUserName");

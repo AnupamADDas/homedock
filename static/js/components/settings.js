@@ -2,6 +2,8 @@
  * Settings & RBAC User Administration Component for HomeDock.
  */
 
+import { openModal, closeModal, revealElements } from "../utils/motion.js";
+
 import { api, showToast } from "../api.js";
 import { folderBrowser } from "./folder_browser.js";
 import { showConfirmDialog } from "./confirm_dialog.js";
@@ -16,9 +18,9 @@ export class SettingsComponent {
 
   async init() {
     if (this.initialized) return;
+    this.initialized = true;
     this.setupEventListeners();
     await this.refresh();
-    this.initialized = true;
   }
 
   setupEventListeners() {
@@ -192,11 +194,11 @@ export class SettingsComponent {
     const createUserForm = document.getElementById("createUserForm");
 
     if (createUserBtn && createUserModal) {
-      createUserBtn.addEventListener("click", () => createUserModal.classList.add("active"));
+      createUserBtn.addEventListener("click", () => openModal(createUserModal));
     }
 
     if (closeCreateUserBtn && createUserModal) {
-      closeCreateUserBtn.addEventListener("click", () => createUserModal.classList.remove("active"));
+      closeCreateUserBtn.addEventListener("click", () => closeModal(createUserModal));
     }
 
     if (createUserForm && createUserModal) {
@@ -216,7 +218,7 @@ export class SettingsComponent {
             allowed_roots: uRoots,
           });
           showToast("User created successfully", "success");
-          createUserModal.classList.remove("active");
+          closeModal(createUserModal);
           createUserForm.reset();
           await this.refreshUsers();
         } catch (err) {
@@ -231,7 +233,7 @@ export class SettingsComponent {
     const editUserForm = document.getElementById("editUserForm");
 
     if (closeEditUserBtn && editUserModal) {
-      closeEditUserBtn.addEventListener("click", () => editUserModal.classList.remove("active"));
+      closeEditUserBtn.addEventListener("click", () => closeModal(editUserModal));
     }
 
     if (editUserForm && editUserModal) {
@@ -258,7 +260,7 @@ export class SettingsComponent {
         try {
           await api.updateUser(userId, payload);
           showToast("User updated successfully", "success");
-          editUserModal.classList.remove("active");
+          closeModal(editUserModal);
           editUserForm.reset();
           await this.refreshUsers();
 
@@ -352,6 +354,7 @@ export class SettingsComponent {
       </div>
     `).join("");
 
+    revealElements(container.querySelectorAll(".allowed-root-chip"), { stagger: 20, distance: 6 });
     container.querySelectorAll(".btn-remove-root").forEach(btn => {
       btn.addEventListener("click", async () => {
         const pathToRemove = btn.dataset.path;
@@ -443,7 +446,7 @@ export class SettingsComponent {
             : "";
         }
 
-        if (editModal) editModal.classList.add("active");
+        if (editModal) openModal(editModal);
       });
     });
 

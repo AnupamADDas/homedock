@@ -5,6 +5,7 @@
 
 import { formatBytes, formatSpeed, formatTime } from "../utils/formatters.js";
 import { SparklineChart } from "../utils/charts.js";
+import { revealElements } from "../utils/motion.js";
 import { api } from "../api.js";
 
 export class DashboardComponent {
@@ -429,6 +430,7 @@ export class DashboardComponent {
           </div>
         `;
       }).join("");
+      revealElements(container.querySelectorAll(".storage-card"), { stagger: 35 });
       return;
     }
 

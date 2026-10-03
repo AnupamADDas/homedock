@@ -2,6 +2,8 @@
  * API Client & Network Service for HomeDock.
  */
 
+import { animateElement } from "./utils/motion.js";
+
 class ApiService {
   constructor() {
     this.token = localStorage.getItem("homedock_token") || null;
@@ -405,15 +407,21 @@ export function showToast(message, type = "info", duration = 3500) {
   if (!container) return;
 
   const toast = document.createElement("div");
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <span>${message}</span>
-  `;
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+  const label = document.createElement("span");
+  label.textContent = message;
+  toast.appendChild(label);
 
   container.appendChild(toast);
+  animateElement(toast, [
+    { opacity: 0, transform: "translateY(12px) scale(0.97)" },
+    { opacity: 1, transform: "none" },
+  ]);
   setTimeout(() => {
-    toast.style.opacity = "0";
-    toast.style.transform = "translateX(100%)";
-    setTimeout(() => toast.remove(), 250);
+    animateElement(toast, [
+      { opacity: 1, transform: "none" },
+      { opacity: 0, transform: "translateX(20px)" },
+    ], { duration: 160 }).then(() => toast.remove());
   }, duration);
 }
