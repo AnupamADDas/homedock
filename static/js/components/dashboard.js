@@ -321,9 +321,9 @@ export class DashboardComponent {
         const hostKernelEl = document.getElementById("sensorHostKernel");
         const uptimeEl = document.getElementById("uptimeDetail");
 
-        if (hostEl) hostEl.textContent = `${sys.hostname} (${sys.os})`;
+        if (hostEl) hostEl.textContent = sys.hostname || "Home Server";
         if (cpuModelEl) cpuModelEl.textContent = sys.cpu_model || "Intel Core i7-8550U";
-        if (hostKernelEl) hostKernelEl.textContent = `${sys.hostname} • ${sys.os}`;
+        if (hostKernelEl) hostKernelEl.textContent = sys.os || sys.kernel || "Linux Server";
         if (uptimeEl) uptimeEl.textContent = formatTime(sys.uptime_seconds);
       }
     } catch (err) {
