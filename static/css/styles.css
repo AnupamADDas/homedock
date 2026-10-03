@@ -352,14 +352,19 @@ input, textarea, select, [contenteditable="true"] {
 .macos-pill-input:focus-visible,
 .macos-password-capsule:focus-within {
   background: rgba(14, 27, 54, 0.85);
-  border-color: rgba(147, 197, 253, 0.4);
-  outline: none;
+  border-color: rgba(255, 255, 255, 0.32);
+  outline: none !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.12);
 }
 
 .macos-password-input:focus,
-.macos-password-input:focus-visible {
-  outline: none;
+.macos-password-input:focus-visible,
+#loginUsername:focus,
+#loginUsername:focus-visible,
+#loginPassword:focus,
+#loginPassword:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .macos-password-capsule {
