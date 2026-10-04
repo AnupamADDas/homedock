@@ -1306,31 +1306,6 @@ input, textarea, select, [contenteditable="true"] {
   font-feature-settings: "tnum" 1;
 }
 
-.partition-io-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  margin-top: 0.35rem;
-  border-top: 1px dashed var(--border-color);
-  padding-top: 0.25rem;
-}
-
-.partition-io-badge {
-  display: inline-flex;
-  align-items: center;
-  min-width: 105px;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  white-space: nowrap;
-}
-
-.partition-io-badge.write-badge {
-  justify-content: flex-end;
-  text-align: right;
-}
 
 .io-badge {
   font-size: 0.72rem;

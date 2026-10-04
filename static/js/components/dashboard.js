@@ -368,9 +368,6 @@ export class DashboardComponent {
           const totalStr = formatBytes(p.total_bytes);
           const freeStr = formatBytes(p.free_bytes);
           const isMounted = p.mounted && p.mountpoint;
-          
-          const partReadActive = p.read_speed && p.read_speed > 1024;
-          const partWriteActive = p.write_speed && p.write_speed > 1024;
 
           return `
             <div class="partition-item" data-part="${p.name}">
@@ -391,10 +388,6 @@ export class DashboardComponent {
                 <div class="partition-usage-row">
                   <span data-field="part-usage">${usedStr} / ${totalStr} (${p.usage_percent}%)</span>
                   <span data-field="part-free">Free: ${freeStr}</span>
-                </div>
-                <div class="partition-io-row">
-                  <span class="io-badge partition-io-badge ${partReadActive ? 'active-read' : ''}" data-field="part-read">Read: ${formatSpeed(p.read_speed || 0)}</span>
-                  <span class="io-badge partition-io-badge write-badge ${partWriteActive ? 'active-write' : ''}" data-field="part-write">Write: ${formatSpeed(p.write_speed || 0)}</span>
                 </div>
               ` : `
                 <div style="font-size: 0.8rem; color: var(--text-muted);">Capacity: ${totalStr}</div>
@@ -461,9 +454,6 @@ export class DashboardComponent {
         const partEl = card.querySelector(`[data-part="${p.name}"]`);
         if (!partEl || !p.mounted) return;
 
-        const partReadActive = p.read_speed && p.read_speed > 1024;
-        const partWriteActive = p.write_speed && p.write_speed > 1024;
-
         const barEl = partEl.querySelector('[data-field="part-bar"]');
         if (barEl) {
           barEl.style.width = `${p.usage_percent}%`;
@@ -478,18 +468,6 @@ export class DashboardComponent {
         const freeEl = partEl.querySelector('[data-field="part-free"]');
         if (freeEl) {
           freeEl.textContent = `Free: ${formatBytes(p.free_bytes)}`;
-        }
-
-        const pReadEl = partEl.querySelector('[data-field="part-read"]');
-        if (pReadEl) {
-          pReadEl.textContent = `Read: ${formatSpeed(p.read_speed || 0)}`;
-          pReadEl.className = `io-badge partition-io-badge ${partReadActive ? 'active-read' : ''}`;
-        }
-
-        const pWriteEl = partEl.querySelector('[data-field="part-write"]');
-        if (pWriteEl) {
-          pWriteEl.textContent = `Write: ${formatSpeed(p.write_speed || 0)}`;
-          pWriteEl.className = `io-badge partition-io-badge write-badge ${partWriteActive ? 'active-write' : ''}`;
         }
       });
     });
