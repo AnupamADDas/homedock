@@ -404,7 +404,7 @@ export class DashboardComponent {
         }).join("");
 
         return `
-          <div class="storage-card" data-dev="${dev.name}">
+          <div class="card storage-card" data-dev="${dev.name}">
             <div class="storage-card-header">
               <div>
                 <div class="storage-drive-title">${dev.model}</div>
