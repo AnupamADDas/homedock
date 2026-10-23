@@ -99,9 +99,10 @@ class FileService:
                         size = entry_stat.st_size if not is_dir else 0
                         mtime = datetime.fromtimestamp(entry_stat.st_mtime, tz=timezone.utc).isoformat()
                         
-                        ext = Path(entry.name).suffix.lower()
+                        entry_name = Path(entry.name)
+                        ext = entry_name.suffix.lower()
                         # Multi-extension check like .tar.gz
-                        double_ext = "".join(Path(entry.name).suffixes[-2:]).lower()
+                        double_ext = "".join(entry_name.suffixes[-2:]).lower()
                         is_archive = ext in ARCHIVE_EXTENSIONS or double_ext in ARCHIVE_EXTENSIONS
                         
                         mime_type, _ = mimetypes.guess_type(entry.name)
@@ -109,7 +110,9 @@ class FileService:
 
                         items.append({
                             "name": entry.name,
-                            "path": str(Path(entry.path).resolve()),
+                            # scandir uses the validated, resolved parent path.
+                            # Only symlinks need another filesystem resolution.
+                            "path": str(Path(entry.path).resolve()) if is_symlink else entry.path,
                             "is_dir": is_dir,
                             "is_symlink": is_symlink,
                             "is_archive": is_archive,

@@ -288,6 +288,41 @@ def test_root_filesystem_allowed():
     assert "/" in crumb_paths
     assert "/home" in crumb_paths
 
+
+def test_directory_listing_preserves_resolved_paths(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "Folder").mkdir()
+    (root / "archive.tar.gz").write_bytes(b"archive")
+    (root / ".hidden").touch()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside")
+    (root / "link.txt").symlink_to(outside)
+    (root / "broken.txt").symlink_to(root / "missing.txt")
+    alias = tmp_path / "alias"
+    alias.symlink_to(root, target_is_directory=True)
+
+    listing = file_service.list_directory(alias, [str(root)])
+    items = {item["name"]: item for item in listing["items"]}
+    assert [item["name"] for item in listing["items"]] == [
+        "Folder", "archive.tar.gz", "broken.txt", "link.txt"
+    ]
+    assert listing["current_path"] == str(root)
+    assert items["Folder"]["path"] == str(root / "Folder")
+    assert items["Folder"]["is_dir"] is True
+    assert items["archive.tar.gz"]["path"] == str(root / "archive.tar.gz")
+    assert items["archive.tar.gz"]["is_archive"] is True
+    assert items["archive.tar.gz"]["size"] == 7
+    assert items["link.txt"]["path"] == str(outside)
+    assert items["link.txt"]["is_symlink"] is True
+    assert items["broken.txt"]["path"] == str(root / "missing.txt")
+    assert items["broken.txt"]["is_symlink"] is True
+    with pytest.raises(PermissionError):
+        file_service.validate_path(items["link.txt"]["path"], [str(root)])
+
+    visible = file_service.list_directory(alias, [str(root)], show_hidden=True)
+    assert ".hidden" in {item["name"] for item in visible["items"]}
+
 def test_storage_chips_exclude_snap_and_boot(client, auth_headers):
     # Set allowed roots to root filesystem /
     from app.database import set_setting, get_setting
