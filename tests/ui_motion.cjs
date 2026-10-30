@@ -102,6 +102,7 @@ async function main() {
     await page.locator("#loginPassword").fill("wrong");
     await page.locator("#loginForm button[type=submit]").click();
     await visible("#loginErrorMsg");
+    await page.locator("#loginUsername").fill("admin");
     await page.locator("#loginPassword").fill("correct");
     await page.locator("#loginForm button[type=submit]").click();
     await visible("#appContainer");
@@ -306,7 +307,6 @@ async function main() {
     passed("settings and dialog keyboard focus trap");
 
     await page.evaluate(() => ui.manager.showDesktop());
-    await page.locator("#themeToggleBtn").click();
     assert.equal(await page.locator("html").getAttribute("data-theme"), "light");
     await settle();
     await fs.mkdir(previews, { recursive: true });

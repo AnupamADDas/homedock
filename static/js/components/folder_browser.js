@@ -190,7 +190,7 @@ export class FolderBrowser {
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-primary); flex-shrink: 0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                   <span class="fb-dir-name">${d.name}</span>
                 </div>
-                ${d.writable ? '<span class="badge-tag" style="background: var(--color-success-alpha); color: var(--color-success); font-size: 0.65rem;">writable</span>' : ''}
+                ${d.writable ? '<span class="badge-tag" style="background: var(--color-success-alpha); color: var(--color-success); font-size: var(--text-size-micro);">writable</span>' : ''}
               </div>
             `;
           });

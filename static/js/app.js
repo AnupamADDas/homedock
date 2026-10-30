@@ -29,7 +29,7 @@ class App {
   }
 
   setupTheme() {
-    const savedTheme = localStorage.getItem("homedock_theme") || "dark";
+    const savedTheme = localStorage.getItem("homedock_theme") || "light";
     document.documentElement.setAttribute("data-theme", savedTheme);
     this.updateThemeIcon(savedTheme);
 
