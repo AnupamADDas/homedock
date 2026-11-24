@@ -45,6 +45,7 @@ HomeDock is specifically engineered to run efficiently on Linux servers and lapt
   - Formats: `.zip`, `.tar`, `.tar.gz`, `.tgz`, `.tar.bz2`, `.tbz2`, `.tar.xz`, `.txz`, and `.7z`.
   - Security: Validates every archive member prior to extraction, rejecting directory traversal sequences (e.g. `../../etc/passwd`), null bytes, or symlinks pointing outside the designated destination.
 * **Allowed Roots Boundary:** Strictly prevents access or traversal outside administrator-configured allowed storage roots.
+* **Everyday Usability:** Sortable columns and a folder filter, a per-row "⋯" menu and right-click context menu, inline rename / new-folder editing with validation, quick preview for images, video, audio, PDF and text, undo for deletes, and keyboard shortcuts (press `?` in the File Manager for the full list).
 
 ### 2.4 AriaNg-Style Download Manager
 * **Multi-Protocol Support:** Paste HTTP, HTTPS, FTP, or Magnet URLs, or upload `.torrent` files.

@@ -7,7 +7,7 @@
 import { openModal, closeModal, revealElements } from "../utils/motion.js";
 
 import { api, showToast } from "../api.js";
-import { formatBytes, formatDate, formatSpeed, formatTime } from "../utils/formatters.js";
+import { formatBytes, formatDate, formatSpeed, formatTime, escapeHtml } from "../utils/formatters.js";
 import { folderBrowser } from "./folder_browser.js";
 import { showConfirmDialog } from "./confirm_dialog.js";
 
@@ -33,6 +33,22 @@ export class FileManagerComponent {
     this.uploadCancelled = false;
     this.initialized = false;
     this.isDeleting = false;
+    this.items = [];
+    this.breadcrumbs = [];
+    this.sortKey = "name";
+    this.sortDir = "asc";
+    this.filterText = "";
+    this.focusedPath = null;
+    this.pendingDeletes = new Set();
+    this.menuEl = null;
+    this.previewPath = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem("homedock.files.sort") || "null");
+      if (saved && ["name", "size", "mtime"].includes(saved.key)) {
+        this.sortKey = saved.key;
+        this.sortDir = saved.dir === "desc" ? "desc" : "asc";
+      }
+    } catch { /* Sorting still works without storage. */ }
   }
 
   async init() {
@@ -197,37 +213,8 @@ export class FileManagerComponent {
       });
     }
 
-    // Keyboard shortcuts for copy/cut/paste
-    document.addEventListener("keydown", (e) => {
-      if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
-      const fmView = document.getElementById("filesView");
-      if (!fmView || !fmView.closest(".macos-window.focused") || fmView.closest("[inert]")
-          || document.querySelector(".modal-overlay.active")) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-        if (this.selectedItems.size > 0) {
-          e.preventDefault();
-          this.setClipboard("copy", Array.from(this.selectedItems));
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x") {
-        if (this.selectedItems.size > 0) {
-          e.preventDefault();
-          this.setClipboard("move", Array.from(this.selectedItems));
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
-        if (this.clipboard && this.clipboard.items && this.clipboard.items.length > 0) {
-          e.preventDefault();
-          this.executePaste();
-        }
-      } else if (e.key === "Escape") {
-        const transferModal = document.getElementById("fmTransferModal");
-        if (transferModal && transferModal.classList.contains("active")) {
-          this.closeTransferModal();
-        } else if (this.clipboard) {
-          this.clearClipboard();
-        }
-      }
-    });
+    this.setupListInteractions();
+    this.setupKeyboardShortcuts();
 
     const selectAllCheckbox = document.getElementById("fmSelectAll");
     if (selectAllCheckbox) {
@@ -297,23 +284,30 @@ export class FileManagerComponent {
     chipsContainer.innerHTML = chips.map(c => {
       const isActive = this.currentPath && (this.currentPath === c.path || (c.path !== "/" && this.currentPath.startsWith(c.path + "/")));
       return `
-        <div class="storage-chip ${isActive ? 'active' : ''}" data-path="${c.path}" title="${c.path}">
+        <div class="storage-chip ${isActive ? 'active' : ''}" data-path="${escapeHtml(c.path)}" title="${escapeHtml(c.path)}" role="button" tabindex="0">
           <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
             <line x1="22" y1="12" x2="2" y2="12"></line>
             <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
             <line x1="6" y1="16" x2="6.01" y2="16"></line>
             <line x1="10" y1="16" x2="10.01" y2="16"></line>
           </svg>
-          <span>${c.label}</span>
+          <span>${escapeHtml(c.label)}</span>
         </div>
       `;
     }).join("");
 
     chipsContainer.querySelectorAll(".storage-chip").forEach(chip => {
-      chip.addEventListener("click", () => {
+      const go = () => {
         const path = chip.dataset.path;
         if (this.currentPath !== path) {
           this.navigate(path);
+        }
+      };
+      chip.addEventListener("click", go);
+      chip.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          go();
         }
       });
     });
@@ -344,11 +338,20 @@ export class FileManagerComponent {
       }
 
       this.selectedItems.clear();
+      if (pushHistory || data.current_path !== this._lastRenderedPath) {
+        this.filterText = "";
+        const filterInput = document.getElementById("fmFilterInput");
+        if (filterInput) filterInput.value = "";
+        this.focusedPath = null;
+      }
+      this._lastRenderedPath = data.current_path;
+      this.items = data.items || [];
+      this.breadcrumbs = data.breadcrumbs || [];
       this.renderBreadcrumbs(data.breadcrumbs);
       if (data.storage_chips) {
         this.renderStorageChips(data.storage_chips);
       }
-      this.renderFileList(data.items);
+      this.renderFileList();
       this.updateSelectionToolbar();
       this.updateClipboardToolbar();
     } catch (err) {
@@ -371,7 +374,7 @@ export class FileManagerComponent {
     container.innerHTML = breadcrumbs.map((crumb, idx) => {
       const isLast = idx === breadcrumbs.length - 1;
       return `
-        <span class="crumb-link" data-path="${crumb.path}">${crumb.name}</span>
+        <span class="crumb-link" data-path="${escapeHtml(crumb.path)}" role="link" tabindex="0">${escapeHtml(crumb.name)}</span>
         ${!isLast ? '<span class="crumb-separator">/</span>' : ""}
       `;
     }).join("");
@@ -381,51 +384,124 @@ export class FileManagerComponent {
         const path = link.dataset.path;
         this.navigate(path);
       });
+      link.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this.navigate(link.dataset.path);
+        }
+      });
     });
   }
 
-  renderFileList(items) {
+  // ------------------------------------------------------------------
+  // Listing: sorting, filtering, rendering
+  // ------------------------------------------------------------------
+
+  getVisibleItems() {
+    const needle = this.filterText.trim().toLowerCase();
+    const dir = this.sortDir === "desc" ? -1 : 1;
+    const key = this.sortKey;
+    const items = this.items.filter(item =>
+      !this.pendingDeletes.has(item.path) && (!needle || item.name.toLowerCase().includes(needle))
+    );
+    return items.sort((a, b) => {
+      if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1; // folders always first
+      const byName = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+      let primary;
+      if (key === "size") primary = (a.size || 0) - (b.size || 0);
+      else if (key === "mtime") primary = (a.mtime || 0) - (b.mtime || 0);
+      else return byName * dir;
+      return primary !== 0 ? primary * dir : byName; // ties always fall back to A-Z
+    });
+  }
+
+  setSort(key, dir) {
+    if (!["name", "size", "mtime"].includes(key)) return;
+    if (!dir) dir = this.sortKey === key && this.sortDir === "asc" ? "desc" : "asc";
+    this.sortKey = key;
+    this.sortDir = dir === "desc" ? "desc" : "asc";
+    try {
+      localStorage.setItem("homedock.files.sort", JSON.stringify({ key: this.sortKey, dir: this.sortDir }));
+    } catch { /* Keep the sort for this session. */ }
+    this.updateSortIndicators();
+    this.renderFileList({ animate: false });
+  }
+
+  updateSortIndicators() {
+    document.querySelectorAll("[data-sort-th]").forEach(th => {
+      const active = th.dataset.sortTh === this.sortKey;
+      th.setAttribute("aria-sort", active ? (this.sortDir === "asc" ? "ascending" : "descending") : "none");
+      const arrow = th.querySelector(".fm-sort-arrow");
+      if (arrow) arrow.textContent = active ? (this.sortDir === "asc" ? " ▲" : " ▼") : "";
+    });
+    const select = document.getElementById("fmSortSelect");
+    if (select) select.value = `${this.sortKey}:${this.sortDir}`;
+  }
+
+  getFileIconSvg(item) {
+    if (item.is_dir) {
+      return `<svg class="file-icon folder" viewBox="0 0 24 24" aria-hidden="true"><path class="folder-back" d="M3 4h6.5l2 2H21a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/><path class="folder-front" d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/><path class="folder-highlight" d="M3 9h18"/></svg>`;
+    }
+    if (item.is_archive) {
+      return `<svg class="file-icon archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 8v13H3V8M1 3h22v5H1z"/><path d="M10 12h4"/></svg>`;
+    }
+    return `<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+  }
+
+  renderFileList({ animate = true } = {}) {
     const tableBody = document.getElementById("fmTableBody");
     const selectAll = document.getElementById("fmSelectAll");
     if (selectAll) {
       selectAll.checked = false;
       selectAll.indeterminate = false;
     }
-
     if (!tableBody) return;
+    this.updateSortIndicators();
 
-    if (!items || items.length === 0) {
+    const items = this.getVisibleItems();
+    this.visibleItems = items;
+    // Drop selection entries that are no longer listed (filtered or deleted).
+    const visiblePaths = new Set(items.map(item => item.path));
+    this.selectedItems = new Set([...this.selectedItems].filter(path => visiblePaths.has(path)));
+    if (this.focusedPath && !visiblePaths.has(this.focusedPath)) this.focusedPath = null;
+
+    if (items.length === 0) {
+      const filtering = this.filterText.trim().length > 0;
       tableBody.innerHTML = `
         <tr class="fm-empty-row">
-          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem;">
-            Folder is empty
+          <td colspan="5">
+            <div class="fm-empty-state">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h6.5l2 2H21a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/></svg>
+              <div class="fm-empty-title">${filtering ? `No items match “${escapeHtml(this.filterText.trim())}”` : "This folder is empty"}</div>
+              <div class="fm-empty-hint">${filtering ? "Try a different search." : "Drag files here to upload them, or use the buttons below."}</div>
+              <div class="fm-empty-actions">
+                ${filtering
+                  ? `<button type="button" class="btn btn-secondary btn-sm" data-empty-action="clear-filter">Clear filter</button>`
+                  : `<button type="button" class="btn btn-primary btn-sm" data-empty-action="upload">Upload files</button>
+                     <button type="button" class="btn btn-secondary btn-sm" data-empty-action="new-folder">New folder</button>`}
+              </div>
+            </div>
           </td>
         </tr>
       `;
+      this.updateSelectionToolbar();
       return;
     }
 
     tableBody.innerHTML = items.map(item => {
       const isCut = this.clipboard && this.clipboard.action === "move" && this.clipboard.items.includes(item.path);
-      let iconSvg = "";
-
-      if (item.is_dir) {
-        iconSvg = `<svg class="file-icon folder" viewBox="0 0 24 24" aria-hidden="true"><path class="folder-back" d="M3 4h6.5l2 2H21a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1z"/><path class="folder-front" d="M2 9h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/><path class="folder-highlight" d="M3 9h18"/></svg>`;
-      } else if (item.is_archive) {
-        iconSvg = `<svg class="file-icon archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8M1 3h22v5H1z"/><path d="M10 12h4"/></svg>`;
-      } else {
-        iconSvg = `<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-      }
-
+      const name = escapeHtml(item.name);
+      const path = escapeHtml(item.path);
+      const focused = item.path === this.focusedPath;
       return `
-        <tr class="file-row ${isCut ? 'is-cut' : ''}" data-path="${item.path}" data-isdir="${item.is_dir}" data-archive="${item.is_archive}">
+        <tr class="file-row ${isCut ? 'is-cut' : ''} ${focused ? 'is-focused' : ''}" data-path="${path}" data-isdir="${item.is_dir}" data-archive="${item.is_archive}">
           <td class="fm-selection-cell">
-            <input type="checkbox" class="fm-item-checkbox" data-path="${item.path}" aria-label="Select item">
+            <input type="checkbox" class="fm-item-checkbox" data-path="${path}" aria-label="Select ${name}">
           </td>
           <td>
-            <button type="button" class="file-name-cell">
-              ${iconSvg}
-              <span class="file-item-name">${item.name}</span>
+            <button type="button" class="file-name-cell" title="${name}">
+              ${this.getFileIconSvg(item)}
+              <span class="file-item-name">${name}</span>
             </button>
           </td>
           <td class="fm-size-cell">
@@ -437,29 +513,17 @@ export class FileManagerComponent {
           <td class="fm-actions-cell">
             <div class="file-item-actions">
               ${!item.is_dir ? `
-                <a href="${api.getFileDownloadUrl(item.path)}" download class="btn btn-secondary btn-icon btn-sm" title="Download">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <a href="${escapeHtml(api.getFileDownloadUrl(item.path))}" download class="btn btn-secondary btn-icon btn-sm" title="Download ${name}" aria-label="Download ${name}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 </a>
               ` : ""}
               ${item.is_archive ? `
-                <button class="btn btn-secondary btn-icon btn-sm btn-extract" data-path="${item.path}" title="Extract Archive">
-                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                <button type="button" class="btn btn-secondary btn-icon btn-sm" data-row-action="extract" title="Extract ${name}" aria-label="Extract ${name}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                 </button>
               ` : ""}
-              <button class="btn btn-secondary btn-icon btn-sm btn-copy" data-path="${item.path}" data-name="${item.name}" title="Copy">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </button>
-              <button class="btn btn-secondary btn-icon btn-sm btn-move" data-path="${item.path}" data-name="${item.name}" title="Cut / Move">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
-              </button>
-              <button class="btn btn-secondary btn-icon btn-sm btn-rename" data-path="${item.path}" data-name="${item.name}" title="Rename">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              </button>
-              <button class="btn btn-secondary btn-icon btn-sm btn-info" data-path="${item.path}" title="Details">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              </button>
-              <button class="btn btn-secondary btn-icon btn-sm btn-delete text-danger" data-path="${item.path}" data-name="${item.name}" title="Delete">
-                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <button type="button" class="btn btn-secondary btn-icon btn-sm btn-more" data-row-action="menu" title="More actions for ${name}" aria-label="More actions for ${name}" aria-haspopup="menu">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
               </button>
             </div>
           </td>
@@ -467,81 +531,422 @@ export class FileManagerComponent {
       `;
     }).join("");
 
-    revealElements(tableBody.querySelectorAll(".file-row"), { stagger: 18, distance: 6 });
+    if (animate) revealElements(tableBody.querySelectorAll(".file-row"), { stagger: 18, distance: 6 });
+    this.updateSelectionToolbar();
+  }
 
-    // Attach row click listeners
-    tableBody.querySelectorAll(".file-row").forEach(row => {
-      const isDir = row.dataset.isdir === "true";
-      const path = row.dataset.path;
-      const nameCell = row.querySelector(".file-name-cell");
+  findItem(path) {
+    return this.items.find(item => item.path === path) || null;
+  }
 
-      nameCell.addEventListener("click", () => {
-        if (isDir) {
-          this.navigate(path);
-        } else {
-          // Open or trigger download
-          window.open(api.getFileDownloadUrl(path), "_blank");
+  rowPath(el) {
+    return el?.closest?.(".file-row")?.dataset.path || null;
+  }
+
+  /** Items an action should apply to: the selection if any, otherwise the highlighted row. */
+  getActionTargets(fallbackPath = null) {
+    if (fallbackPath && !this.selectedItems.has(fallbackPath)) return [fallbackPath];
+    if (this.selectedItems.size > 0) return [...this.selectedItems];
+    const single = fallbackPath || this.focusedPath;
+    return single ? [single] : [];
+  }
+
+  openItem(path) {
+    const item = this.findItem(path);
+    if (!item) return;
+    if (item.is_dir) {
+      this.navigate(path);
+    } else if (this.isPreviewable(item)) {
+      this.openPreview(path);
+    } else {
+      window.open(api.getFileDownloadUrl(path), "_blank");
+    }
+  }
+
+  setFocusedRow(path, { scroll = true } = {}) {
+    this.focusedPath = path;
+    document.querySelectorAll("#fmTableBody .file-row").forEach(row => {
+      const active = row.dataset.path === path;
+      row.classList.toggle("is-focused", active);
+      if (active && scroll) row.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  moveFocus(delta) {
+    const items = this.visibleItems || [];
+    if (items.length === 0) return;
+    let index = items.findIndex(item => item.path === this.focusedPath);
+    index = index === -1 ? (delta > 0 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, index + delta));
+    this.setFocusedRow(items[index].path);
+  }
+
+  setupListInteractions() {
+    const tableBody = document.getElementById("fmTableBody");
+    if (!tableBody) return;
+
+    tableBody.addEventListener("click", (e) => {
+      const emptyAction = e.target.closest("[data-empty-action]")?.dataset.emptyAction;
+      if (emptyAction) {
+        if (emptyAction === "upload") document.getElementById("fmUploadInput")?.click();
+        else if (emptyAction === "new-folder") this.promptNewFolder();
+        else if (emptyAction === "clear-filter") this.setFilter("");
+        return;
+      }
+      const path = this.rowPath(e.target);
+      if (!path) return;
+      if (e.target.closest(".fm-item-checkbox") || e.target.closest("a[download]") || e.target.closest(".fm-inline-edit")) return;
+
+      const actionBtn = e.target.closest("[data-row-action]");
+      if (actionBtn) {
+        e.stopPropagation();
+        if (actionBtn.dataset.rowAction === "extract") this.confirmExtract(path);
+        else if (actionBtn.dataset.rowAction === "menu") this.openRowMenu(path, actionBtn);
+        return;
+      }
+      this.setFocusedRow(path, { scroll: false });
+      if (e.target.closest(".file-name-cell")) this.openItem(path);
+    });
+
+    tableBody.addEventListener("change", (e) => {
+      const cb = e.target.closest(".fm-item-checkbox");
+      if (!cb) return;
+      if (cb.checked) this.selectedItems.add(cb.dataset.path);
+      else this.selectedItems.delete(cb.dataset.path);
+      this.updateSelectionToolbar();
+    });
+
+    tableBody.addEventListener("contextmenu", (e) => {
+      const path = this.rowPath(e.target);
+      if (!path || e.target.closest(".fm-inline-edit")) return;
+      e.preventDefault();
+      this.setFocusedRow(path, { scroll: false });
+      this.openRowMenu(path, null, { x: e.clientX, y: e.clientY });
+    });
+
+    // Sorting: column headers + select box
+    document.querySelectorAll("[data-sort]").forEach(btn => {
+      btn.addEventListener("click", () => this.setSort(btn.dataset.sort));
+    });
+    document.getElementById("fmSortSelect")?.addEventListener("change", (e) => {
+      const [key, dir] = e.target.value.split(":");
+      this.setSort(key, dir);
+    });
+    this.updateSortIndicators();
+
+    // Filter box
+    const filterInput = document.getElementById("fmFilterInput");
+    if (filterInput) {
+      filterInput.addEventListener("input", () => this.setFilter(filterInput.value, { fromInput: true }));
+      filterInput.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          if (filterInput.value) this.setFilter("");
+          filterInput.blur();
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          filterInput.blur();
+          this.moveFocus(1);
         }
       });
+    }
+
+    document.getElementById("fmShortcutsBtn")?.addEventListener("click", () => {
+      openModal(document.getElementById("fmShortcutsModal"));
     });
 
-    // Checkboxes
-    tableBody.querySelectorAll(".fm-item-checkbox").forEach(cb => {
-      cb.addEventListener("change", (e) => {
-        const path = cb.dataset.path;
-        if (e.target.checked) {
-          this.selectedItems.add(path);
-        } else {
-          this.selectedItems.delete(path);
-        }
-        this.updateSelectionToolbar();
-      });
-    });
+    // Preview modal controls
+    document.getElementById("filePreviewPrev")?.addEventListener("click", () => this.stepPreview(-1));
+    document.getElementById("filePreviewNext")?.addEventListener("click", () => this.stepPreview(1));
+    const previewModal = document.getElementById("filePreviewModal");
+    previewModal?.addEventListener("click", (e) => { if (e.target === previewModal) closeModal(previewModal); });
+    new MutationObserver(() => {
+      if (!previewModal.classList.contains("active")) {
+        const body = document.getElementById("filePreviewBody");
+        if (body) body.replaceChildren(); // stops any playing media
+        this.previewPath = null;
+      }
+    }).observe(previewModal, { attributes: true, attributeFilter: ["class"] });
 
-    // Action buttons
-    tableBody.querySelectorAll(".btn-copy").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.setClipboard("copy", [btn.dataset.path]);
-      });
+    // Dismiss row menu on outside interaction
+    document.addEventListener("mousedown", (e) => {
+      if (this.menuEl && !this.menuEl.contains(e.target)) this.closeMenu();
     });
+    window.addEventListener("blur", () => this.closeMenu());
+    document.getElementById("fmContentArea")?.addEventListener("scroll", () => this.closeMenu(), { passive: true });
+  }
 
-    tableBody.querySelectorAll(".btn-move").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.setClipboard("move", [btn.dataset.path]);
-      });
-    });
+  setFilter(value, { fromInput = false } = {}) {
+    this.filterText = value;
+    const input = document.getElementById("fmFilterInput");
+    if (input && !fromInput) input.value = value;
+    this.renderFileList({ animate: false });
+  }
 
-    tableBody.querySelectorAll(".btn-rename").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.promptRename(btn.dataset.path, btn.dataset.name);
-      });
-    });
+  setupKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+      const tag = e.target.tagName;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(tag) || e.target.isContentEditable) return;
+      const fmView = document.getElementById("filesView");
+      if (!fmView || !fmView.closest(".macos-window.focused") || fmView.closest("[inert]")
+          || document.querySelector(".modal-overlay.active")) return;
 
-    tableBody.querySelectorAll(".btn-delete").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key;
+
+      if (this.menuEl) {
+        if (key === "Escape") { e.preventDefault(); this.closeMenu(true); }
+        return;
+      }
+
+      if (mod && key.toLowerCase() === "c") {
+        const targets = this.getActionTargets();
+        if (targets.length) { e.preventDefault(); this.setClipboard("copy", targets); }
+      } else if (mod && key.toLowerCase() === "x") {
+        const targets = this.getActionTargets();
+        if (targets.length) { e.preventDefault(); this.setClipboard("move", targets); }
+      } else if (mod && key.toLowerCase() === "v") {
+        if (this.clipboard?.items?.length) { e.preventDefault(); this.executePaste(); }
+      } else if (mod && key.toLowerCase() === "a") {
         e.preventDefault();
-        btn.blur();
-        this.confirmDelete([btn.dataset.path], btn.dataset.name);
-      });
+        (this.visibleItems || []).forEach(item => this.selectedItems.add(item.path));
+        document.querySelectorAll("#fmTableBody .fm-item-checkbox").forEach(cb => { cb.checked = true; });
+        this.updateSelectionToolbar();
+      } else if (mod || e.altKey && key !== "ArrowUp") {
+        return;
+      } else if (key === "ArrowDown") {
+        e.preventDefault(); this.moveFocus(1);
+      } else if (key === "ArrowUp" && e.altKey) {
+        e.preventDefault(); this.goToParent();
+      } else if (key === "ArrowUp") {
+        e.preventDefault(); this.moveFocus(-1);
+      } else if (key === "Enter") {
+        if (this.focusedPath && !e.target.closest("button, a")) { e.preventDefault(); this.openItem(this.focusedPath); }
+      } else if (key === " ") {
+        const item = this.focusedPath && this.findItem(this.focusedPath);
+        if (item && !e.target.closest("button, a")) {
+          e.preventDefault();
+          if (this.isPreviewable(item)) this.openPreview(item.path);
+        }
+      } else if (key.toLowerCase() === "x") {
+        if (this.focusedPath) {
+          e.preventDefault();
+          const checked = !this.selectedItems.has(this.focusedPath);
+          if (checked) this.selectedItems.add(this.focusedPath); else this.selectedItems.delete(this.focusedPath);
+          document.querySelectorAll("#fmTableBody .fm-item-checkbox").forEach(cb => {
+            if (cb.dataset.path === this.focusedPath) cb.checked = checked;
+          });
+          this.updateSelectionToolbar();
+        }
+      } else if (key === "F2") {
+        const target = this.selectedItems.size === 1 ? [...this.selectedItems][0] : this.focusedPath;
+        if (target) { e.preventDefault(); this.promptRename(target); }
+      } else if (key === "Delete") {
+        const targets = this.getActionTargets();
+        if (targets.length) { e.preventDefault(); this.confirmDelete(targets); }
+      } else if (key === "Backspace") {
+        e.preventDefault(); this.goToParent();
+      } else if (key === "/") {
+        e.preventDefault(); document.getElementById("fmFilterInput")?.focus();
+      } else if (key === "?") {
+        e.preventDefault(); openModal(document.getElementById("fmShortcutsModal"));
+      } else if (key === "Escape") {
+        const transferModal = document.getElementById("fmTransferModal");
+        if (transferModal && transferModal.classList.contains("active")) {
+          this.closeTransferModal();
+        } else if (this.filterText) {
+          this.setFilter("");
+        } else if (this.selectedItems.size > 0) {
+          this.selectedItems.clear();
+          document.querySelectorAll("#fmTableBody .fm-item-checkbox").forEach(cb => { cb.checked = false; });
+          this.updateSelectionToolbar();
+        } else if (this.clipboard) {
+          this.clearClipboard();
+        }
+      }
     });
+  }
 
-    tableBody.querySelectorAll(".btn-info").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.showItemInfo(btn.dataset.path);
-      });
-    });
+  goToParent() {
+    const crumbs = this.breadcrumbs || [];
+    if (crumbs.length >= 2) this.navigate(crumbs[crumbs.length - 2].path);
+  }
 
-    tableBody.querySelectorAll(".btn-extract").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.confirmExtract(btn.dataset.path);
-      });
+  // ------------------------------------------------------------------
+  // Row action menu (⋯ button and right-click)
+  // ------------------------------------------------------------------
+
+  openRowMenu(path, anchorEl, point = null) {
+    const item = this.findItem(path);
+    if (!item) return;
+    this.closeMenu();
+    const targets = this.selectedItems.has(path) && this.selectedItems.size > 1 ? [...this.selectedItems] : [path];
+    const multi = targets.length > 1;
+    const icon = (d) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">${d}</svg>`;
+    const entries = [];
+    if (!multi) {
+      entries.push({ id: "open", label: item.is_dir ? "Open" : (this.isPreviewable(item) ? "Preview" : "Open in new tab"), icon: icon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>') });
+      if (!item.is_dir) entries.push({ id: "download", label: "Download", icon: icon('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>') });
+      if (item.is_archive) entries.push({ id: "extract", label: "Extract here", icon: icon('<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/>') });
+      entries.push({ sep: true });
+    }
+    entries.push({ id: "copy", label: multi ? `Copy ${targets.length} items` : "Copy", hint: "Ctrl+C", icon: icon('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>') });
+    entries.push({ id: "move", label: multi ? `Cut ${targets.length} items` : "Cut / Move", hint: "Ctrl+X", icon: icon('<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>') });
+    if (!multi) {
+      entries.push({ id: "rename", label: "Rename", hint: "F2", icon: icon('<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>') });
+      entries.push({ id: "info", label: "Details", icon: icon('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>') });
+    }
+    entries.push({ sep: true });
+    entries.push({ id: "delete", label: multi ? `Delete ${targets.length} items` : "Delete", hint: "Del", danger: true, icon: icon('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>') });
+
+    const menu = document.createElement("div");
+    menu.className = "fm-menu";
+    menu.setAttribute("role", "menu");
+    menu.innerHTML = entries.map(entry => entry.sep
+      ? '<div class="fm-menu-sep" role="separator"></div>'
+      : `<button type="button" role="menuitem" class="fm-menu-item ${entry.danger ? "danger" : ""}" data-menu-action="${entry.id}">${entry.icon}<span>${escapeHtml(entry.label)}</span>${entry.hint ? `<kbd>${entry.hint}</kbd>` : ""}</button>`
+    ).join("");
+    document.body.appendChild(menu);
+    this.menuEl = menu;
+    this.menuReturnFocus = anchorEl || document.activeElement;
+
+    // Position near the click / button, clamped to the viewport.
+    const rect = anchorEl ? anchorEl.getBoundingClientRect() : null;
+    let x = point ? point.x : rect.right;
+    let y = point ? point.y : rect.bottom + 4;
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    if (!point) x -= mw;
+    x = Math.max(8, Math.min(x, window.innerWidth - mw - 8));
+    if (y + mh > window.innerHeight - 8) y = Math.max(8, (rect ? rect.top - mh - 4 : y - mh));
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    const itemsEls = [...menu.querySelectorAll(".fm-menu-item")];
+    itemsEls[0]?.focus();
+    menu.addEventListener("keydown", (e) => {
+      const i = itemsEls.indexOf(document.activeElement);
+      if (e.key === "ArrowDown") { e.preventDefault(); itemsEls[(i + 1) % itemsEls.length].focus(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); itemsEls[(i - 1 + itemsEls.length) % itemsEls.length].focus(); }
+      else if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); this.closeMenu(true); }
+      e.stopPropagation();
     });
+    menu.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-menu-action]");
+      if (!btn) return;
+      const action = btn.dataset.menuAction;
+      this.closeMenu();
+      this.runMenuAction(action, path, targets);
+    });
+  }
+
+  closeMenu(restoreFocus = false) {
+    if (!this.menuEl) return;
+    this.menuEl.remove();
+    this.menuEl = null;
+    if (restoreFocus && this.menuReturnFocus?.isConnected) this.menuReturnFocus.focus({ preventScroll: true });
+    this.menuReturnFocus = null;
+  }
+
+  runMenuAction(action, path, targets) {
+    switch (action) {
+      case "open": this.openItem(path); break;
+      case "download": {
+        const a = document.createElement("a");
+        a.href = api.getFileDownloadUrl(path);
+        a.download = "";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        break;
+      }
+      case "extract": this.confirmExtract(path); break;
+      case "copy": this.setClipboard("copy", targets); break;
+      case "move": this.setClipboard("move", targets); break;
+      case "rename": this.promptRename(path); break;
+      case "info": this.showItemInfo(path); break;
+      case "delete": this.confirmDelete(targets); break;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // File preview
+  // ------------------------------------------------------------------
+
+  getPreviewKind(item) {
+    if (!item || item.is_dir) return null;
+    const ext = (item.name.split(".").pop() || "").toLowerCase();
+    if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "avif"].includes(ext)) return "image";
+    if (["mp4", "webm", "m4v", "mov", "ogv"].includes(ext)) return "video";
+    if (["mp3", "wav", "flac", "ogg", "oga", "m4a", "aac", "opus"].includes(ext)) return "audio";
+    if (ext === "pdf") return "pdf";
+    if (["txt", "md", "log", "json", "csv", "tsv", "yaml", "yml", "ini", "conf", "cfg", "toml", "py", "js", "ts", "sh", "css", "xml", "html", "srt", "env", "sql"].includes(ext)) return "text";
+    return null;
+  }
+
+  isPreviewable(item) {
+    return this.getPreviewKind(item) !== null;
+  }
+
+  async openPreview(path) {
+    const item = this.findItem(path);
+    const kind = this.getPreviewKind(item);
+    const modal = document.getElementById("filePreviewModal");
+    const body = document.getElementById("filePreviewBody");
+    if (!item || !kind || !modal || !body) return;
+    this.previewPath = path;
+
+    document.getElementById("filePreviewTitle").textContent = item.name;
+    const download = document.getElementById("filePreviewDownload");
+    download.href = api.getFileDownloadUrl(path);
+    download.setAttribute("download", item.name);
+
+    const list = this.getPreviewList();
+    const index = list.findIndex(entry => entry.path === path);
+    document.getElementById("filePreviewPrev").disabled = index <= 0;
+    document.getElementById("filePreviewNext").disabled = index === -1 || index >= list.length - 1;
+
+    const url = api.getFilePreviewUrl(path);
+    body.replaceChildren();
+    let el;
+    if (kind === "image") {
+      el = document.createElement("img");
+      el.alt = item.name;
+      el.src = url;
+    } else if (kind === "video" || kind === "audio") {
+      el = document.createElement(kind);
+      el.controls = true;
+      el.autoplay = false;
+      el.src = url;
+    } else if (kind === "pdf") {
+      el = document.createElement("iframe");
+      el.title = item.name;
+      el.src = url;
+    } else {
+      el = document.createElement("pre");
+      el.className = "file-preview-text";
+      el.textContent = "Loading…";
+      const token = path;
+      fetch(api.getFileDownloadUrl(path), { headers: { Range: "bytes=0-262143" } })
+        .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.text(); })
+        .then(text => {
+          if (this.previewPath !== token) return;
+          el.textContent = text + (item.size > 262144 ? "\n\n… (showing the first 256 KB)" : "");
+        })
+        .catch(err => { if (this.previewPath === token) el.textContent = `Could not load preview: ${err.message}`; });
+    }
+    el.classList.add(`file-preview-${kind}`);
+    body.appendChild(el);
+    openModal(modal);
+  }
+
+  getPreviewList() {
+    return (this.visibleItems || []).filter(item => this.isPreviewable(item));
+  }
+
+  stepPreview(delta) {
+    const list = this.getPreviewList();
+    const index = list.findIndex(entry => entry.path === this.previewPath);
+    const next = list[index + delta];
+    if (next) this.openPreview(next.path);
   }
 
   updateSelectionToolbar() {
@@ -868,68 +1273,191 @@ export class FileManagerComponent {
     await this.refresh();
   }
 
+  /** Validate a file or folder name. Returns an error message, or "" when valid. */
+  validateName(name, { ignorePath = null } = {}) {
+    const trimmed = name.trim();
+    if (!trimmed) return "Name cannot be empty";
+    if (trimmed === "." || trimmed === "..") return "That name is not allowed";
+    if (/[\/\0]/.test(trimmed)) return "Names cannot contain “/”";
+    if (trimmed.length > 255) return "Name is too long (255 characters max)";
+    const clash = this.items.some(item => item.name === trimmed && item.path !== ignorePath);
+    if (clash) return `“${trimmed}” already exists in this folder`;
+    return "";
+  }
+
+  /**
+   * Shows an inline text editor inside a file row (used for both rename and new folder).
+   * Enter confirms, Escape or clicking away cancels, errors appear next to the field.
+   */
+  startInlineEdit(cell, { value, selectEnd, ignorePath, onCommit, onCancel }) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "fm-inline-edit";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "form-control fm-inline-input";
+    input.value = value;
+    input.spellcheck = false;
+    input.setAttribute("aria-label", "Name");
+    const error = document.createElement("div");
+    error.className = "fm-inline-error";
+    error.setAttribute("role", "alert");
+    wrapper.append(input, error);
+    cell.appendChild(wrapper);
+
+    let busy = false;
+    let finished = false;
+    const finish = () => { finished = true; wrapper.remove(); };
+    const showError = (message) => { error.textContent = message; input.classList.toggle("invalid", Boolean(message)); };
+
+    input.addEventListener("input", () => showError(""));
+    input.addEventListener("keydown", async (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        finish();
+        onCancel?.();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (busy) return;
+        const problem = this.validateName(input.value, { ignorePath });
+        if (problem) { showError(problem); return; }
+        busy = true;
+        input.disabled = true;
+        try {
+          await onCommit(input.value.trim());
+          if (!finished) finish();
+        } catch (err) {
+          busy = false;
+          input.disabled = false;
+          showError(err.message || "Could not save");
+          input.focus();
+        }
+      }
+    });
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (!busy && !finished && wrapper.isConnected && document.activeElement !== input) {
+          finish();
+          onCancel?.();
+        }
+      }, 120);
+    });
+    input.focus();
+    if (selectEnd != null) input.setSelectionRange(0, selectEnd);
+    else input.select();
+    return { input, wrapper };
+  }
+
   promptNewFolder() {
-    if (document.activeElement && typeof document.activeElement.blur === "function") {
-      document.activeElement.blur();
-    }
-    const name = prompt("Enter new folder name:");
-    if (!name || !name.trim()) return;
+    if (!this.currentPath) return;
+    const tableBody = document.getElementById("fmTableBody");
+    if (!tableBody) return;
+    document.querySelector("#fmTableBody .fm-new-row")?.remove();
+    // Make sure a filter does not hide the folder we are about to create.
+    if (this.filterText) this.setFilter("");
+    tableBody.querySelector(".fm-empty-row")?.remove();
 
-    const newPath = `${this.currentPath}/${name.trim()}`;
-    api.createFolder(newPath)
-      .then(() => {
-        showToast("Folder created", "success");
-        this.refresh();
-      })
-      .catch(err => showToast(err.message, "error"));
+    let base = "untitled folder";
+    let candidate = base;
+    for (let n = 2; this.items.some(item => item.name === candidate); n++) candidate = `${base} ${n}`;
+
+    const row = document.createElement("tr");
+    row.className = "file-row fm-new-row";
+    row.innerHTML = `
+      <td class="fm-selection-cell"></td>
+      <td><div class="file-name-cell">${this.getFileIconSvg({ is_dir: true })}</div></td>
+      <td class="fm-size-cell">Folder</td><td class="fm-date-cell"></td><td class="fm-actions-cell"></td>`;
+    tableBody.prepend(row);
+    row.scrollIntoView({ block: "nearest" });
+
+    const cleanup = () => {
+      row.remove();
+      if (tableBody.children.length === 0) this.renderFileList({ animate: false });
+    };
+    this.startInlineEdit(row.querySelector(".file-name-cell"), {
+      value: candidate,
+      onCancel: cleanup,
+      onCommit: async (name) => {
+        await api.createFolder(`${this.currentPath}/${name}`);
+        showToast(`Created folder “${name}”`, "success");
+        await this.refresh();
+        this.setFocusedRow(`${this.currentPath}/${name}`);
+      },
+    });
   }
 
-  promptRename(path, currentName) {
-    if (document.activeElement && typeof document.activeElement.blur === "function") {
-      document.activeElement.blur();
-    }
-    const newName = prompt(`Rename '${currentName}' to:`, currentName);
-    if (!newName || !newName.trim() || newName.trim() === currentName) return;
+  promptRename(path) {
+    const item = this.findItem(path);
+    const row = [...document.querySelectorAll("#fmTableBody .file-row")].find(r => r.dataset.path === path);
+    if (!item || !row) return;
+    const nameButton = row.querySelector(".file-name-cell");
+    const cell = nameButton.parentElement;
+    nameButton.style.display = "none";
 
-    api.renameItem(path, newName.trim())
-      .then(() => {
-        showToast("Renamed successfully", "success");
-        this.refresh();
-      })
-      .catch(err => showToast(err.message, "error"));
+    const dot = item.name.lastIndexOf(".");
+    const selectEnd = !item.is_dir && dot > 0 ? dot : item.name.length; // keep the extension out of the selection
+    const restore = () => { nameButton.style.display = ""; };
+    this.startInlineEdit(cell, {
+      value: item.name,
+      selectEnd,
+      ignorePath: path,
+      onCancel: restore,
+      onCommit: async (newName) => {
+        if (newName === item.name) { restore(); return; }
+        await api.renameItem(path, newName);
+        showToast(`Renamed to “${newName}”`, "success");
+        this.focusedPath = path.slice(0, path.lastIndexOf("/") + 1) + newName;
+        await this.refresh();
+      },
+    });
   }
 
+  /**
+   * Delete with undo: the rows disappear immediately and the real delete only runs when the
+   * undo toast expires (or is dismissed). Undo simply brings the rows back. Closing the tab
+   * during the grace period therefore deletes nothing.
+   */
   async confirmDelete(paths, displayName) {
-    if (this.isDeleting) return;
     const count = paths ? paths.length : 0;
     if (count === 0) return;
+    const itemName = displayName
+      || (this.findItem(paths[0])?.name)
+      || paths[0].split("/").filter(Boolean).pop()
+      || "item";
+    const label = count === 1 ? `“${itemName}”` : `${count} items`;
 
-    const itemName = displayName || (paths[0] ? paths[0].split("/").filter(Boolean).pop() : "item");
-    const title = count === 1 ? "Delete Item" : "Delete Multiple Items";
-    const msg = count === 1
-      ? `Are you sure you want to permanently delete "${itemName}"?`
-      : `Are you sure you want to permanently delete ${count} selected items?`;
+    paths.forEach(path => this.pendingDeletes.add(path));
+    paths.forEach(path => this.selectedItems.delete(path));
+    this.renderFileList({ animate: false });
 
-    const confirmed = await showConfirmDialog({
-      title,
-      message: msg,
-      confirmText: "Delete",
-      danger: true
+    let settled = false;
+    const commit = async () => {
+      if (settled) return;
+      settled = true;
+      try {
+        await api.deleteItems(paths);
+        showToast(`Deleted ${label}`, "success", 2500);
+      } catch (err) {
+        showToast(`Could not delete ${label}: ${err.message}`, "error");
+      } finally {
+        paths.forEach(path => this.pendingDeletes.delete(path));
+        await this.refresh();
+      }
+    };
+    showToast(`Deleting ${label}…`, "info", 7000, {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (settled) return;
+          settled = true;
+          paths.forEach(path => this.pendingDeletes.delete(path));
+          this.renderFileList({ animate: false });
+          showToast(`Restored ${label}`, "success", 2000);
+        },
+      },
+      onTimeout: commit,
+      onDismiss: commit,
     });
-
-    if (!confirmed) return;
-
-    this.isDeleting = true;
-    try {
-      await api.deleteItems(paths);
-      showToast(count === 1 ? `Deleted "${itemName}"` : `Deleted ${count} items`, "success");
-      this.selectedItems.clear();
-      await this.refresh();
-    } catch (err) {
-      showToast(err.message, "error");
-    } finally {
-      this.isDeleting = false;
-    }
   }
 
   bulkDelete() {
@@ -947,16 +1475,16 @@ export class FileManagerComponent {
     });
     if (!confirmed) return;
 
-    showToast("Extracting archive...", "info");
+    const progressToast = showToast(`Extracting ${archiveName}…`, "info", Infinity);
     const taskId = `task-extract-${Date.now()}`;
     this.trackTask(taskId, `Extracting ${archiveName}...`);
 
     try {
       const res = await api.extractArchive(archivePath, null, taskId);
-      showToast(`Archive extracted: ${res.files_extracted} files`, "success");
+      progressToast?.update(`Archive extracted: ${res.files_extracted} files`, "success");
       await this.refresh();
     } catch (err) {
-      showToast(err.message, "error");
+      progressToast ? progressToast.update(err.message, "error") : showToast(err.message, "error");
       this.hideTaskProgress(500);
     }
   }
@@ -970,12 +1498,12 @@ export class FileManagerComponent {
 
       body.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
-          <div><strong>Name:</strong> ${info.name}</div>
+          <div><strong>Name:</strong> ${escapeHtml(info.name)}</div>
           <div><strong>Type:</strong> ${info.is_dir ? "Directory" : "File"}</div>
-          <div><strong>Path:</strong> <code style="font-size: 0.8rem;">${info.path}</code></div>
+          <div><strong>Path:</strong> <code style="font-size: 0.8rem;">${escapeHtml(info.path)}</code></div>
           <div><strong>Size:</strong> ${info.is_dir ? formatBytes(info.total_size) : formatBytes(info.size)}</div>
           ${info.is_dir ? `<div><strong>Contains:</strong> ${info.file_count || 0} files, ${info.dir_count || 0} folders</div>` : ""}
-          <div><strong>Permissions:</strong> <code>${info.permissions}</code></div>
+          <div><strong>Permissions:</strong> <code>${escapeHtml(info.permissions)}</code></div>
           <div><strong>Modified:</strong> ${formatDate(info.modified)}</div>
         </div>
       `;
@@ -987,7 +1515,7 @@ export class FileManagerComponent {
 
   setClipboard(action, paths) {
     if (!paths || paths.length === 0) return;
-    this.clipboard = { action, items: [...paths] };
+    this.clipboard = { action, items: [...paths], sourceDir: this.currentPath };
     this.updateClipboardToolbar();
 
     // Visually mark cut items in the current table if applicable
@@ -1002,13 +1530,8 @@ export class FileManagerComponent {
 
     const count = paths.length;
     const sampleName = paths[0].split("/").pop();
-    const displayName = count === 1 ? `'${sampleName}'` : `${count} items`;
-
-    if (action === "copy") {
-      showToast(`Copied ${displayName} to clipboard. Open target folder and click Paste.`, "info");
-    } else {
-      showToast(`Cut ${displayName}. Open target folder and click Move Here.`, "info");
-    }
+    const displayName = count === 1 ? `“${sampleName}”` : `${count} items`;
+    showToast(`${action === "copy" ? "Copied" : "Cut"} ${displayName} — open another folder, then choose ${action === "copy" ? "Paste Here" : "Move Here"}.`, "info", 3000);
   }
 
   clearClipboard() {
@@ -1021,6 +1544,7 @@ export class FileManagerComponent {
   updateClipboardToolbar() {
     const bar = document.getElementById("fmClipboardBar");
     const text = document.getElementById("fmClipboardText");
+    const pasteBtn = document.getElementById("fmPasteBtn");
     const pasteBtnText = document.getElementById("fmPasteBtnText");
 
     if (!bar || !text || !pasteBtnText) return;
@@ -1032,15 +1556,21 @@ export class FileManagerComponent {
 
     bar.style.display = "flex";
     const count = this.clipboard.items.length;
-    const sampleName = this.clipboard.items[0].split("/").pop();
+    const sampleName = escapeHtml(this.clipboard.items[0].split("/").pop());
     const label = count === 1 ? sampleName : `${count} items`;
+    const fromName = escapeHtml((this.clipboard.sourceDir || "").split("/").filter(Boolean).pop() || "/");
 
-    if (this.clipboard.action === "copy") {
-      text.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy: ${label}`;
-      pasteBtnText.textContent = "Paste Here";
-    } else {
-      text.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg> Cut: ${label}`;
-      pasteBtnText.textContent = "Move Here";
+    const copyIcon = `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const cutIcon = `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>`;
+    const isCopy = this.clipboard.action === "copy";
+    text.innerHTML = `${isCopy ? copyIcon : cutIcon} ${isCopy ? "Copy" : "Cut"}: ${label} <span class="fm-clipboard-from">from ${fromName}</span>`;
+    pasteBtnText.textContent = isCopy ? "Paste Here" : "Move Here";
+
+    // Pasting into the folder the items already live in does nothing useful.
+    const inSource = this.currentPath && this.currentPath === this.clipboard.sourceDir;
+    if (pasteBtn) {
+      pasteBtn.disabled = Boolean(inSource) || Boolean(this._pasting);
+      pasteBtn.title = inSource ? "Open a different folder to paste into" : "Paste items into this folder";
     }
   }
 
@@ -1052,7 +1582,9 @@ export class FileManagerComponent {
     }
 
     const { action, items } = this.clipboard;
+    if (this.currentPath === this.clipboard.sourceDir) return;
     const pasteBtn = document.getElementById("fmPasteBtn");
+    this._pasting = true;
     if (pasteBtn) pasteBtn.disabled = true;
 
     const taskId = `task-${action}-${Date.now()}`;
@@ -1061,23 +1593,22 @@ export class FileManagerComponent {
     const title = `${actionLabel} ${count} item${count > 1 ? "s" : ""}...`;
     this.trackTask(taskId, title);
 
+    const progressToast = showToast(`${actionLabel} ${count} item${count > 1 ? "s" : ""}…`, "info", Infinity);
     try {
       if (action === "copy") {
-        showToast("Copying items...", "info");
         const res = await api.copyItems(items, this.currentPath, taskId);
-        showToast(`Copied ${res.copied.length} item(s) successfully`, "success");
+        progressToast?.update(`Copied ${res.copied.length} item(s) successfully`, "success");
       } else {
-        showToast("Moving items...", "info");
         const res = await api.moveItems(items, this.currentPath, taskId);
-        showToast(`Moved ${res.moved.length} item(s) successfully`, "success");
+        progressToast?.update(`Moved ${res.moved.length} item(s) successfully`, "success");
         this.clearClipboard();
       }
       await this.refresh();
     } catch (err) {
-      showToast(err.message, "error");
+      progressToast ? progressToast.update(err.message, "error") : showToast(err.message, "error");
       this.hideTaskProgress(500);
     } finally {
-      if (pasteBtn) pasteBtn.disabled = false;
+      this._pasting = false;
       this.updateClipboardToolbar();
     }
   }
@@ -1103,7 +1634,7 @@ export class FileManagerComponent {
     });
 
     // Populate item list preview
-    itemList.innerHTML = items.map(p => `<div>${p.split("/").pop()} <span style="color: var(--text-muted); font-size: 0.75rem;">(${p})</span></div>`).join("");
+    itemList.innerHTML = items.map(p => `<div>${escapeHtml(p.split("/").pop())} <span style="color: var(--text-muted); font-size: 0.75rem;">(${escapeHtml(p)})</span></div>`).join("");
 
     // Pre-fill destination with current path
     destInput.value = this.currentPath || "";
@@ -1123,9 +1654,9 @@ export class FileManagerComponent {
       }
 
       chipsContainer.innerHTML = locations.map(loc => `
-        <span class="quick-dest-chip ${loc.path === destInput.value ? 'active' : ''}" data-path="${loc.path}">
+        <span class="quick-dest-chip ${loc.path === destInput.value ? 'active' : ''}" data-path="${escapeHtml(loc.path)}">
           <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>${loc.label}</span>
+          <span>${escapeHtml(loc.label)}</span>
         </span>
       `).join("");
 
@@ -1178,15 +1709,14 @@ export class FileManagerComponent {
     const title = `${actionLabel} ${count} item${count > 1 ? "s" : ""} to ${destName}...`;
     this.trackTask(taskId, title);
 
+    const progressToast = showToast(`${actionLabel} ${count} item${count > 1 ? "s" : ""}…`, "info", Infinity);
     try {
       if (action === "copy") {
-        showToast("Copying items...", "info");
         const res = await api.copyItems(items, dest, taskId);
-        showToast(`Copied ${res.copied.length} item(s) to ${dest}`, "success");
+        progressToast?.update(`Copied ${res.copied.length} item(s) to ${dest}`, "success");
       } else {
-        showToast("Moving items...", "info");
         const res = await api.moveItems(items, dest, taskId);
-        showToast(`Moved ${res.moved.length} item(s) to ${dest}`, "success");
+        progressToast?.update(`Moved ${res.moved.length} item(s) to ${dest}`, "success");
         if (this.clipboard && this.clipboard.items.some(p => items.includes(p))) {
           this.clearClipboard();
         }
@@ -1195,7 +1725,7 @@ export class FileManagerComponent {
       this.selectedItems.clear();
       await this.refresh();
     } catch (err) {
-      showToast(err.message, "error");
+      progressToast ? progressToast.update(err.message, "error") : showToast(err.message, "error");
       this.hideTaskProgress(500);
     } finally {
       if (submitBtn) submitBtn.disabled = false;

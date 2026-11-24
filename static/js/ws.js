@@ -11,6 +11,13 @@ class WebSocketManager {
     this.heartbeatTimer = null;
     this.reconnectAttempts = 0;
     this.maxReconnectDelay = 10000;
+    this.status = "idle";
+  }
+
+  setStatus(state) {
+    if (this.status === state) return;
+    this.status = state;
+    window.dispatchEvent(new CustomEvent("homedock:ws_status", { detail: { state } }));
   }
 
   isConnected() {
@@ -33,6 +40,7 @@ class WebSocketManager {
 
       this.ws.onopen = () => {
         this.reconnectAttempts = 0;
+        this.setStatus("connected");
         this.startHeartbeat();
       };
 
@@ -47,6 +55,7 @@ class WebSocketManager {
 
       this.ws.onclose = () => {
         this.stopHeartbeat();
+        if (this.ws && api.token) this.setStatus("reconnecting");
         this.scheduleReconnect();
       };
 
@@ -109,14 +118,16 @@ class WebSocketManager {
   }
 
   disconnect() {
+    this.setStatus("idle");
     this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+      const socket = this.ws;
+      this.ws = null; // detach first so onclose does not report "reconnecting"
+      socket.close();
     }
   }
 }

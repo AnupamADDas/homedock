@@ -73,6 +73,39 @@ def test_file_upload_and_download(client, auth_headers, test_sandbox):
     assert dl_resp.status_code == 200
     assert dl_resp.content == test_content
 
+def test_inline_preview_only_for_passive_types(client, auth_headers, test_sandbox):
+    allowed = test_sandbox["allowed"]
+    samples = {
+        "pic.png": b"\x89PNG\r\n\x1a\n",
+        "notes.txt": b"hello",
+        "page.html": b"<script>alert(1)</script>",
+        "image.svg": b"<svg onload=alert(1)/>",
+    }
+    for name, content in samples.items():
+        (Path(allowed) / name).write_bytes(content)
+
+    def get(name, inline):
+        suffix = "&inline=true" if inline else ""
+        return client.get(f"/api/files/download?path={Path(allowed) / name}{suffix}", headers=auth_headers)
+
+    png = get("pic.png", True)
+    assert png.status_code == 200
+    assert png.headers["content-disposition"].startswith("inline")
+    assert png.headers["x-content-type-options"] == "nosniff"
+
+    txt = get("notes.txt", True)
+    assert txt.headers["content-disposition"].startswith("inline")
+    assert txt.headers["content-type"].startswith("text/plain")
+
+    # Script-capable types must never render inline in the app's origin.
+    for name in ("page.html", "image.svg"):
+        resp = get(name, True)
+        assert resp.status_code == 200
+        assert resp.headers["content-disposition"].startswith("attachment"), name
+
+    # Without the flag, everything stays a download.
+    assert get("pic.png", False).headers["content-disposition"].startswith("attachment")
+
 def test_path_traversal_blocked(client, auth_headers, test_sandbox):
     # 1. Direct outside file
     outside_file = test_sandbox["secret_file"]

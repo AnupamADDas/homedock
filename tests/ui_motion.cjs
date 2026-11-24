@@ -155,9 +155,11 @@ async function main() {
     await page.waitForFunction(() => ui.files.currentPath === "/downloads/Documents");
     assert.equal(await page.locator(".fm-item-checkbox:checked").count(), 0);
     assert.equal(await page.locator("#fmContentArea").evaluate(el => el.classList.contains("fm-grid-view")), true);
-    await page.locator(".btn-copy").first().click();
+    await page.locator(".btn-more").first().click();
+    await page.locator('[data-menu-action="copy"]').click();
     assert.deepEqual(await page.evaluate(() => ui.files.clipboard.items), ["/downloads/Documents/Documents"]);
-    await page.locator(".btn-move").first().click();
+    await page.locator(".btn-more").first().click();
+    await page.locator('[data-menu-action="move"]').click();
     assert.equal(await page.locator(".file-row.is-cut").count(), 1);
     await page.locator('[data-fm-view="list"]').click();
     assert.equal(await page.locator(".file-row.is-cut").count(), 1);
@@ -167,9 +169,10 @@ async function main() {
     assert.equal(await page.locator("#fmContentArea").evaluate(el => el.scrollWidth <= el.clientWidth), true, "Grid fits narrow windows");
     await page.evaluate(() => {
       document.getElementById("fmContentArea").style.width = "";
-      ui.files.renderFileList([]);
+      ui.files.items = [];
+      ui.files.renderFileList();
     });
-    assert.equal(await page.locator(".fm-empty-row").innerText(), "Folder is empty");
+    assert.match(await page.locator(".fm-empty-row").innerText(), /This folder is empty/);
     await page.evaluate(() => ui.files.navigate("/downloads"));
     await settle();
     await fs.mkdir(previews, { recursive: true });
@@ -177,6 +180,120 @@ async function main() {
     await page.locator('[data-fm-view="list"]').click();
     await page.locator("#windowFiles").screenshot({ path: path.join(previews, "files-list.png") });
     passed("file views, folder colors, selection, saved preference, keyboard navigation, clipboard, narrow grid and empty folder");
+
+    // --- UX improvements: sorting, filter, escaping, menu, inline edit, undo, preview, shortcuts ---
+    await page.evaluate(() => ui.files.navigate("/downloads"));
+    await settle();
+    await page.evaluate(() => {
+      const f = ui.files;
+      f.items = [
+        { name: "b.txt", path: "/downloads/b.txt", is_dir: false, is_archive: false, size: 10, mtime: 300 },
+        { name: "a.png", path: "/downloads/a.png", is_dir: false, is_archive: false, size: 900, mtime: 100 },
+        { name: "<img src=x onerror=window.__xss=1>", path: "/downloads/evil", is_dir: false, is_archive: false, size: 5, mtime: 200 },
+        { name: "Docs", path: "/downloads/Docs", is_dir: true, is_archive: false, size: 0, mtime: 50 },
+      ];
+      f.renderFileList({ animate: false });
+    });
+    const names = () => page.locator("#fmTableBody .file-item-name").allInnerTexts();
+    assert.deepEqual((await names()).map(n => n.slice(0, 4)), ["Docs", "<img", "a.pn", "b.tx"], "folders first, then name order");
+    assert.equal(await page.evaluate(() => window.__xss), undefined, "file names are escaped");
+    await page.locator('[data-sort="size"]').click();
+    assert.deepEqual((await names()).slice(-1), ["a.png"], "size ascending puts the largest file last");
+    assert.equal(await page.locator('[data-sort-th="size"]').getAttribute("aria-sort"), "ascending");
+    await page.locator("#fmSortSelect").selectOption("mtime:desc");
+    assert.equal((await names())[1], "b.txt", "select box sorts by modified date");
+    await page.locator("#fmFilterInput").fill("png");
+    assert.deepEqual(await names(), ["a.png"], "filter narrows the list");
+    await page.locator("#fmFilterInput").fill("nomatch");
+    assert.match(await page.locator(".fm-empty-row").innerText(), /No items match/);
+    await page.locator('[data-empty-action="clear-filter"]').click();
+    assert.equal((await names()).length, 4);
+
+    // Row menu and keyboard navigation
+    await page.locator('.file-row[data-path="/downloads/a.png"] .btn-more').click();
+    assert.equal(await page.locator(".fm-menu").count(), 1);
+    assert.equal(await page.locator('.fm-menu [data-menu-action="open"]').innerText(), "Preview");
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator(".fm-menu").count(), 0);
+    await page.evaluate(() => { document.activeElement?.blur(); ui.files.focusedPath = null; });
+    await page.keyboard.press("ArrowDown");
+    assert.equal(await page.evaluate(() => ui.files.focusedPath), "/downloads/Docs");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("x");
+    assert.equal(await page.evaluate(() => ui.files.selectedItems.size), 1, "x toggles selection of the highlighted row");
+    await page.keyboard.press("Control+a");
+    assert.equal(await page.evaluate(() => ui.files.selectedItems.size), 4);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.evaluate(() => ui.files.selectedItems.size), 0);
+
+    // Inline rename with validation
+    await page.evaluate(() => ui.files.setFocusedRow("/downloads/b.txt"));
+    await page.keyboard.press("F2");
+    const renameInput = page.locator(".fm-inline-input");
+    assert.equal(await renameInput.inputValue(), "b.txt");
+    assert.equal(await renameInput.evaluate(el => el.value.slice(el.selectionStart, el.selectionEnd)), "b", "extension is not selected");
+    await renameInput.fill("a.png");
+    await page.keyboard.press("Enter");
+    assert.match(await page.locator(".fm-inline-error").innerText(), /already exists/);
+    await renameInput.fill("c.txt");
+    await page.keyboard.press("Enter");
+    await settle();
+    assert.equal(calls.filter(call => call.path === "/api/files/rename").length, 1);
+
+    // Inline new folder, rejecting a duplicate name
+    await page.locator("#fmNewFolderBtn").click();
+    const folderInput = page.locator(".fm-inline-input");
+    assert.equal(await folderInput.inputValue(), "untitled folder");
+    await folderInput.fill("Documents");
+    await page.keyboard.press("Enter");
+    assert.match(await page.locator(".fm-inline-error").innerText(), /already exists/);
+    await page.keyboard.press("Escape");
+    assert.equal(await page.locator(".fm-new-row").count(), 0);
+
+    // Delete is undoable: nothing is sent until the undo window closes
+    const deletesBefore = calls.filter(call => call.path === "/api/files/delete").length;
+    await page.evaluate(() => { ui.files.items = [
+      { name: "keep.txt", path: "/downloads/keep.txt", is_dir: false, is_archive: false, size: 1, mtime: 1 },
+      { name: "oops.txt", path: "/downloads/oops.txt", is_dir: false, is_archive: false, size: 1, mtime: 1 }]; ui.files.renderFileList({ animate: false }); });
+    await page.evaluate(() => ui.files.confirmDelete(["/downloads/oops.txt"]));
+    assert.deepEqual(await names(), ["keep.txt"]);
+    await page.locator(".toast-action", { hasText: "Undo" }).click();
+    assert.deepEqual(await names(), ["keep.txt", "oops.txt"]);
+    assert.equal(calls.filter(call => call.path === "/api/files/delete").length, deletesBefore, "undo never reaches the server");
+
+    // Preview + shortcuts help
+    await page.evaluate(() => ui.files.items.push({ name: "pic.png", path: "/downloads/pic.png", is_dir: false, is_archive: false, size: 1, mtime: 1 }));
+    await page.evaluate(() => { ui.files.renderFileList({ animate: false }); ui.files.openPreview("/downloads/pic.png"); });
+    assert.equal(await page.locator("#filePreviewBody img").getAttribute("src").then(src => src.includes("inline=true")), true);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.getElementById("filePreviewModal").classList.contains("active"));
+    assert.equal(await page.locator("#filePreviewBody").evaluate(el => el.children.length), 0, "closing the preview clears its media");
+    await page.evaluate(() => { document.activeElement?.blur(); });
+    await page.keyboard.press("?");
+    assert.equal(await page.locator("#fmShortcutsModal").evaluate(el => el.classList.contains("active")), true);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.getElementById("fmShortcutsModal").classList.contains("active"));
+    await page.evaluate(() => ui.files.navigate("/downloads"));
+    await settle();
+    passed("file sorting, filter, escaping, row menu, keyboard navigation, inline rename/new folder, undo delete, preview and shortcuts");
+
+    // Connection status pill
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("homedock:ws_status", { detail: { state: "reconnecting" } })));
+    assert.equal(await page.locator("#connStatusPill").isVisible(), true);
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("homedock:ws_status", { detail: { state: "connected" } })));
+    assert.equal(await page.locator("#connStatusPill").isVisible(), false);
+    // Alert badge
+    await page.evaluate(async () => {
+      const { updateAlertBadge } = await import("/static/js/utils/alerts.js");
+      updateAlertBadge({ metrics: { cpu: { temperature: 95 }, memory: { percent: 10 } }, storage: [] });
+    });
+    assert.equal(await page.locator("#dockAlertBadge").isVisible(), true);
+    await page.evaluate(async () => {
+      const { updateAlertBadge } = await import("/static/js/utils/alerts.js");
+      updateAlertBadge({ metrics: { cpu: { temperature: 40 }, memory: { percent: 10 } }, storage: [] });
+    });
+    assert.equal(await page.locator("#dockAlertBadge").isVisible(), false);
+    passed("connection status pill and dock alert badge");
 
     const geometry = await page.evaluate(() => {
       const win = ui.manager.windows.files.el;
@@ -266,6 +383,15 @@ async function main() {
     await page.locator(".btn-unpause-dl").click();
     await visible(".btn-pause-dl");
     passed("live progress continuity, focus preservation, pause/resume without duplicate listeners");
+
+    // Downloads: counts, friendly empty states, completed-download actions
+    assert.equal(await page.locator('.dl-tab-count[data-count="all"]').innerText(), "1");
+    assert.equal(await page.locator('.dl-tab-count[data-count="active"]').innerText(), "1");
+    await page.locator('.dl-filter-tab[data-filter="error"]').click();
+    assert.match(await page.locator(".dl-empty-state").innerText(), /No failed downloads/);
+    await page.locator('.dl-filter-tab[data-filter="all"]').click();
+    passed("download tab counts and empty states");
+
 
     await page.locator("#openAddDownloadModalBtn").click();
     await visible("#addDownloadModal");
