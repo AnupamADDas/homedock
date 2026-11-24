@@ -148,6 +148,10 @@ class ApiService {
     return await this.request(`/api/files/info?path=${encodeURIComponent(path)}`);
   }
 
+  getFilePreviewUrl(path) {
+    return `${this.getFileDownloadUrl(path)}&inline=true`;
+  }
+
   getFileDownloadUrl(path) {
     const tokenParam = this.token ? `&homedock_token=${encodeURIComponent(this.token)}` : "";
     return `/api/files/download?path=${encodeURIComponent(path)}${tokenParam}`;
@@ -402,26 +406,91 @@ class ApiService {
 
 export const api = new ApiService();
 
-export function showToast(message, type = "info", duration = 3500) {
+function dismissToast(toast) {
+  if (!toast.isConnected || toast._dismissing) return;
+  toast._dismissing = true;
+  animateElement(toast, [
+    { opacity: 1, transform: "none" },
+    { opacity: 0, transform: "translateX(20px)" },
+  ], { duration: 160 }).then(() => toast.remove());
+}
+
+/**
+ * Show a toast. Errors stay longer (and can be dismissed), every toast pauses its
+ * timer while hovered/focused, and an optional action button (e.g. Undo) is supported.
+ * Returns { el, update(message, type), dismiss() } so long operations can reuse one toast.
+ */
+export function showToast(message, type = "info", duration, options = {}) {
   const container = document.getElementById("toastContainer");
-  if (!container) return;
+  if (!container) return null;
+  if (duration === undefined || duration === null) duration = type === "error" ? 8000 : 3500;
 
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
   toast.setAttribute("role", type === "error" ? "alert" : "status");
   const label = document.createElement("span");
+  label.className = "toast-message";
   label.textContent = message;
   toast.appendChild(label);
+
+  if (options.action) {
+    const actionBtn = document.createElement("button");
+    actionBtn.type = "button";
+    actionBtn.className = "toast-action";
+    actionBtn.textContent = options.action.label;
+    actionBtn.addEventListener("click", () => {
+      dismissToast(toast);
+      options.action.onClick?.();
+    });
+    toast.appendChild(actionBtn);
+  }
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "toast-close";
+  closeBtn.setAttribute("aria-label", "Dismiss notification");
+  closeBtn.textContent = "\u00d7";
+  closeBtn.addEventListener("click", () => {
+    clearTimeout(toast._timer);
+    dismissToast(toast);
+    options.onDismiss?.();
+  });
+  toast.appendChild(closeBtn);
+
+  let remaining = duration;
+  let startedAt = 0;
+  const arm = () => {
+    clearTimeout(toast._timer);
+    if (!(remaining > 0) || !Number.isFinite(remaining)) return;
+    startedAt = Date.now();
+    toast._timer = setTimeout(() => { dismissToast(toast); options.onTimeout?.(); }, remaining);
+  };
+  const pause = () => {
+    if (!toast._timer) return;
+    clearTimeout(toast._timer);
+    remaining -= Date.now() - startedAt;
+  };
+  toast.addEventListener("mouseenter", pause);
+  toast.addEventListener("focusin", pause);
+  toast.addEventListener("mouseleave", arm);
+  toast.addEventListener("focusout", arm);
 
   container.appendChild(toast);
   animateElement(toast, [
     { opacity: 0, transform: "translateY(12px) scale(0.97)" },
     { opacity: 1, transform: "none" },
   ]);
-  setTimeout(() => {
-    animateElement(toast, [
-      { opacity: 1, transform: "none" },
-      { opacity: 0, transform: "translateX(20px)" },
-    ], { duration: 160 }).then(() => toast.remove());
-  }, duration);
+  arm();
+
+  return {
+    el: toast,
+    update(nextMessage, nextType = type, nextDuration = 3500) {
+      label.textContent = nextMessage;
+      toast.className = `toast toast-${nextType}`;
+      toast.setAttribute("role", nextType === "error" ? "alert" : "status");
+      remaining = nextType === "error" ? Math.max(nextDuration, 8000) : nextDuration;
+      arm();
+    },
+    dismiss() { clearTimeout(toast._timer); dismissToast(toast); },
+  };
 }

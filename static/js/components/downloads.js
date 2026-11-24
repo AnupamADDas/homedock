@@ -8,7 +8,7 @@ import { openModal, closeModal, revealElements, reconcileContent } from "../util
 
 import { api, showToast } from "../api.js";
 import { wsManager } from "../ws.js";
-import { formatBytes, formatSpeed, formatTime, parseSpeedLimitStr, formatSpeedLimitStr } from "../utils/formatters.js";
+import { formatBytes, formatSpeed, formatTime, parseSpeedLimitStr, formatSpeedLimitStr, escapeHtml } from "../utils/formatters.js";
 import { folderBrowser } from "./folder_browser.js";
 import { showConfirmDialog } from "./confirm_dialog.js";
 
@@ -192,6 +192,9 @@ export class DownloadManagerComponent {
         this.renderDownloads();
       });
     });
+
+    this.setupListActions();
+    this.setupPasteAndDrop();
 
     // Global Limits & Settings Modal (PulseDL Style)
     const globalLimitsBtn = document.getElementById("openGlobalLimitsModalBtn");
@@ -702,9 +705,123 @@ export class DownloadManagerComponent {
     }
   }
 
+  updateTabCounts() {
+    const counts = { all: this.downloads.length, active: 0, waiting: 0, completed: 0, error: 0 };
+    for (const d of this.downloads) {
+      if (d.status === "active") counts.active++;
+      else if (d.status === "waiting" || d.status === "paused") counts.waiting++;
+      else if (d.status === "complete") counts.completed++;
+      else if (d.status === "error") counts.error++;
+    }
+    document.querySelectorAll(".dl-tab-count").forEach(el => {
+      el.textContent = counts[el.dataset.count] ?? 0;
+    });
+    const clearBtn = document.getElementById("dlClearCompletedBtn");
+    if (clearBtn) clearBtn.style.display = counts.completed > 0 ? "" : "none";
+  }
+
+  setupListActions() {
+    const list = document.getElementById("downloadsList");
+    list?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-dl-action]");
+      if (!btn) return;
+      const action = btn.dataset.dlAction;
+      if (action === "add") {
+        document.getElementById("openAddDownloadModalBtn")?.click();
+      } else if (action === "show-in-files") {
+        window.dispatchEvent(new CustomEvent("homedock:show_in_files", { detail: { path: btn.dataset.dir } }));
+      } else if (action === "copy-path") {
+        const p = btn.dataset.dir;
+        navigator.clipboard?.writeText(p).then(
+          () => showToast(`Copied path: ${p}`, "info", 2000),
+          () => showToast("Could not copy to the clipboard", "error")
+        );
+      }
+    });
+
+    document.getElementById("dlClearCompletedBtn")?.addEventListener("click", async () => {
+      const done = this.downloads.filter(d => d.status === "complete");
+      if (done.length === 0) return;
+      const confirmed = await showConfirmDialog({
+        title: "Clear Completed",
+        message: `Remove ${done.length} completed download${done.length > 1 ? "s" : ""} from the list? The downloaded files stay on disk.`,
+        confirmText: "Clear",
+        danger: false,
+      });
+      if (!confirmed) return;
+      const results = await Promise.allSettled(done.map(d => api.deleteDownload(d.gid, false)));
+      const failed = results.filter(r => r.status === "rejected").length;
+      showToast(failed ? `Cleared ${done.length - failed}; ${failed} could not be removed` : `Cleared ${done.length} completed download${done.length > 1 ? "s" : ""}`, failed ? "error" : "success");
+      await this.refresh();
+    });
+  }
+
+  /** Open the New Download dialog pre-filled from pasted text or a dropped .torrent file. */
+  openAddDownloadWith({ text = "", torrent = null } = {}) {
+    const modal = document.getElementById("addDownloadModal");
+    if (!modal || modal.classList.contains("active")) return;
+    document.getElementById("openAddDownloadModalBtn")?.click();
+    // The button handler is async (it fetches the default folder first); fill once the dialog is open.
+    const fill = () => {
+      if (!modal.classList.contains("active")) { setTimeout(fill, 50); return; }
+      document.getElementById("btnTabDirectDl")?.click();
+      if (text) {
+        const urls = document.getElementById("addDownloadUrls");
+        if (urls) urls.value = text;
+      }
+      if (torrent) {
+        const input = document.getElementById("addTorrentFileInput");
+        if (input) {
+          const dt = new DataTransfer();
+          dt.items.add(torrent);
+          input.files = dt.files;
+        }
+      }
+    };
+    fill();
+  }
+
+  setupPasteAndDrop() {
+    const win = document.getElementById("windowDownloads");
+    if (!win) return;
+    const looksLikeDownload = (text) => /^(https?:\/\/|ftp:\/\/|magnet:\?)/i.test(text.trim());
+
+    document.addEventListener("paste", (e) => {
+      if (!win.classList.contains("focused") || win.inert) return;
+      if (document.querySelector(".modal-overlay.active")) return;
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) || e.target.isContentEditable) return;
+      const text = (e.clipboardData?.getData("text") || "").trim();
+      const lines = text.split(/\s*\n\s*/).filter(Boolean);
+      if (lines.length && lines.every(looksLikeDownload)) {
+        e.preventDefault();
+        this.openAddDownloadWith({ text: lines.join("\n") });
+      }
+    });
+
+    let depth = 0;
+    const hasTorrent = (dt) => [...(dt?.items || [])].some(i => i.kind === "file") || [...(dt?.types || [])].includes("Files");
+    win.addEventListener("dragenter", (e) => { if (hasTorrent(e.dataTransfer)) { depth++; win.classList.add("dl-drop-active"); } });
+    win.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) win.classList.remove("dl-drop-active"); });
+    win.addEventListener("dragover", (e) => { if (hasTorrent(e.dataTransfer)) e.preventDefault(); });
+    win.addEventListener("drop", (e) => {
+      depth = 0;
+      win.classList.remove("dl-drop-active");
+      const file = [...(e.dataTransfer?.files || [])].find(f => f.name.toLowerCase().endsWith(".torrent"));
+      if (file) {
+        e.preventDefault();
+        this.openAddDownloadWith({ torrent: file });
+      } else if (e.dataTransfer?.files?.length) {
+        e.preventDefault();
+        showToast("Only .torrent files can be dropped here. Use the File Manager to upload other files.", "info");
+      }
+    });
+  }
+
   renderDownloads() {
     const listContainer = document.getElementById("downloadsList");
     if (!listContainer) return;
+
+    this.updateTabCounts();
 
     let filtered = this.downloads;
     if (this.currentFilter === "active") {
@@ -718,9 +835,18 @@ export class DownloadManagerComponent {
     }
 
     if (filtered.length === 0) {
+      const empty = {
+        all: ["No downloads yet", "Add a link, magnet or .torrent file to get started. You can also paste a URL anywhere in this window."],
+        active: ["Nothing is downloading right now", "Active transfers show up here with speed and time remaining."],
+        waiting: ["Nothing is waiting or paused", "Queued and paused downloads appear here."],
+        completed: ["No completed downloads", "Finished downloads are listed here with a shortcut to their folder."],
+        error: ["No failed downloads", "Anything that fails will appear here so you can retry it."],
+      }[this.currentFilter] || ["No downloads", ""];
       listContainer.innerHTML = `
-        <div style="text-align: center; color: var(--text-muted); padding: 3rem; background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-          No downloads in '${this.currentFilter}' category
+        <div class="dl-empty-state">
+          <div class="dl-empty-title">${empty[0]}</div>
+          <div>${empty[1]}</div>
+          ${this.currentFilter === "all" ? '<button type="button" class="btn btn-primary btn-sm" data-dl-action="add">New Download</button>' : ""}
         </div>
       `;
       return;
@@ -769,7 +895,7 @@ export class DownloadManagerComponent {
       if (isYt && item.thumbnail_url) {
         iconOrThumbHtml = `
           <div class="download-item-thumb-box">
-            <img src="${item.thumbnail_url}" alt="thumbnail" loading="lazy" onerror="this.style.display='none'">
+            <img src="${escapeHtml(item.thumbnail_url)}" alt="" loading="lazy" onerror="this.style.display='none'">
           </div>
         `;
       } else if (isYt) {
@@ -810,7 +936,11 @@ export class DownloadManagerComponent {
       } else if (isPaused) {
         speedOrStatusHtml = `<span style="color: var(--color-warning); font-weight: 600;">⏸ Paused</span> <span style="color: var(--text-muted); margin-left: 0.4rem;">ETA: --</span>`;
       } else if (isComplete) {
-        speedOrStatusHtml = `<span style="color: var(--color-success); font-weight: 600;">✓ Complete</span>`;
+        speedOrStatusHtml = `<span style="color: var(--color-success); font-weight: 600;">✓ Complete</span>
+          ${item.dir ? `<span class="download-complete-actions">
+            <button type="button" class="download-link-btn" data-dl-action="show-in-files" data-dir="${escapeHtml(item.dir)}">Show in Files</button>
+            <button type="button" class="download-link-btn" data-dl-action="copy-path" data-dir="${escapeHtml(item.dir)}">Copy path</button>
+          </span>` : ""}`;
       } else if (isWaiting) {
         speedOrStatusHtml = `<span style="color: var(--color-info); font-weight: 600;">Waiting</span>`;
       } else if (isError) {
@@ -821,13 +951,13 @@ export class DownloadManagerComponent {
       if (isYt) {
         if (isActive || isWaiting) {
           actionsHtml = `
-            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
+            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${escapeHtml(item.name)}" title="Cancel Download">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           `;
         } else {
           actionsHtml = `
-            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Delete Task">
+            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${escapeHtml(item.name)}" title="Delete Task">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           `;
@@ -853,11 +983,11 @@ export class DownloadManagerComponent {
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="var(--color-warning)" stroke-width="2.2" fill="none"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </button>
           ${(isActive || isPaused || isWaiting) ? `
-            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Cancel Download">
+            <button class="btn btn-secondary btn-icon btn-sm btn-cancel-dl text-danger" data-gid="${item.gid}" data-name="${escapeHtml(item.name)}" title="Cancel Download">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           ` : `
-            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${item.name}" title="Delete Task">
+            <button class="btn btn-secondary btn-icon btn-sm btn-delete-dl text-danger" data-gid="${item.gid}" data-name="${escapeHtml(item.name)}" title="Delete Task">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           `}
@@ -872,16 +1002,16 @@ export class DownloadManagerComponent {
               ${iconOrThumbHtml}
               <div class="download-item-titles">
                 <div class="download-item-title-row">
-                  <h4 class="download-item-title" title="${item.name}">${item.name}</h4>
+                  <h4 class="download-item-title" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
                   ${ytBadges}
                   ${statusBadge}
                   ${limitBadge}
                 </div>
                 <div class="download-item-subtitle">
-                  <span class="download-item-path btn-copy-path" data-path="${item.dir || ''}" title="Click to copy path: ${item.dir || ''}">
-                    📁 ${item.dir || '--'}
+                  <span class="download-item-path btn-copy-path" data-path="${escapeHtml(item.dir || '')}" title="Click to copy path: ${escapeHtml(item.dir || '')}">
+                    📁 ${escapeHtml(item.dir || '--')}
                   </span>
-                  ${item.channel ? `<span style="color: var(--text-secondary); font-weight: 500;">• 👤 ${item.channel}</span>` : ''}
+                  ${item.channel ? `<span style="color: var(--text-secondary); font-weight: 500;">• 👤 ${escapeHtml(item.channel)}</span>` : ''}
                   ${item.connections > 0 ? `<span>• 🔗 ${item.connections} conns</span>` : (isPaused ? '<span style="color: var(--color-warning);">• ⏸ Paused</span>' : '')}
                   ${item.num_seeders > 0 ? `<span>• ⬆ ${item.num_seeders} seeds</span>` : ''}
                   ${limitFormatted ? `<span style="color: var(--color-warning); font-weight: 500;">• ⚡ Max ${limitFormatted}</span>` : ''}
@@ -914,7 +1044,7 @@ export class DownloadManagerComponent {
 
           ${isError && item.error_message ? `
             <div class="download-error-callout">
-              Error: ${item.error_message} (Code ${item.error_code})
+              Error: ${escapeHtml(item.error_message)} (Code ${escapeHtml(item.error_code)})
             </div>
           ` : ""}
         </div>

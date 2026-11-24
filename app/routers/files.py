@@ -249,6 +249,7 @@ async def get_info(path: str = Query(...), current_user: Dict[str, Any] = Depend
 async def download_file(
     request: Request,
     path: str = Query(...),
+    inline: bool = Query(False),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     allowed_roots = get_user_allowed_roots(current_user)
@@ -260,11 +261,22 @@ async def download_file(
         mime_type, _ = mimetypes.guess_type(str(resolved))
         mime_type = mime_type or "application/octet-stream"
 
+        # Inline display is only allowed for passive media types. Anything that
+        # could execute script in the app origin (HTML, SVG, XML...) stays a download.
+        inline_ok = inline and (
+            mime_type.startswith(("image/", "video/", "audio/", "text/"))
+            or mime_type == "application/pdf"
+        ) and mime_type not in ("text/html", "image/svg+xml", "text/xml") and not mime_type.endswith("xml")
+        if inline_ok and mime_type.startswith("text/"):
+            mime_type = "text/plain"
+
+        headers = {"X-Content-Type-Options": "nosniff"}
         return FileResponse(
             path=str(resolved),
             filename=resolved.name,
             media_type=mime_type,
-            content_disposition_type="attachment",
+            content_disposition_type="inline" if inline_ok else "attachment",
+            headers=headers,
         )
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))

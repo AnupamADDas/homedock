@@ -13,13 +13,33 @@ import { settingsComponent } from "./components/settings.js";
 import { folderBrowser } from "./components/folder_browser.js";
 import { windowManager } from "./components/window_manager.js";
 import { initMotion, showScreen, animateElement } from "./utils/motion.js";
+import { updateAlertBadge } from "./utils/alerts.js";
 
 class App {
   constructor() {
     this.currentView = "dashboard";
   }
 
+  /** Give icon-only buttons an accessible name from their title (or tooltip). */
+  labelIconButtons(root = document) {
+    root.querySelectorAll?.("button[title]:not([aria-label]), a[title]:not([aria-label])").forEach(el => {
+      if (!el.textContent.trim()) el.setAttribute("aria-label", el.getAttribute("title"));
+    });
+  }
+
   async init() {
+    this.labelIconButtons();
+    new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType !== Node.ELEMENT_NODE) return;
+          if (node.matches?.("button[title]:not([aria-label]), a[title]:not([aria-label])") && !node.textContent.trim()) {
+            node.setAttribute("aria-label", node.getAttribute("title"));
+          }
+          this.labelIconButtons(node);
+        });
+      }
+    }).observe(document.body, { childList: true, subtree: true });
     initMotion();
     this.setupTheme();
     this.setupEventListeners();
@@ -156,28 +176,6 @@ class App {
       });
     }
 
-    // Power buttons on lock screen
-    const sleepBtn = document.getElementById("lockSleepBtn");
-    if (sleepBtn) {
-      sleepBtn.addEventListener("click", () => {
-        showToast("Display sleep mode activated", "info");
-      });
-    }
-
-    const restartBtn = document.getElementById("lockRestartBtn");
-    if (restartBtn) {
-      restartBtn.addEventListener("click", () => {
-        showToast("HomeDock server is active and running", "info");
-      });
-    }
-
-    const shutdownBtn = document.getElementById("lockShutdownBtn");
-    if (shutdownBtn) {
-      shutdownBtn.addEventListener("click", () => {
-        showToast("Server shutdown requires administrator console access", "info");
-      });
-    }
-
     // Logout
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
@@ -188,6 +186,25 @@ class App {
       });
     }
 
+    // "Show in Files" from the Download Manager
+    window.addEventListener("homedock:show_in_files", async (e) => {
+      const path = e.detail?.path;
+      if (!path) return;
+      await windowManager.openWindow("files");
+      await fileManagerComponent.navigate(path);
+    });
+
+    // Live connection status pill
+    window.addEventListener("homedock:ws_status", (e) => {
+      const pill = document.getElementById("connStatusPill");
+      if (!pill) return;
+      const reconnecting = e.detail.state === "reconnecting";
+      pill.hidden = !reconnecting;
+      document.body.classList.toggle("live-data-stale", reconnecting);
+      if (!reconnecting && this._wasReconnecting) showToast("Live connection restored", "success", 2000);
+      this._wasReconnecting = reconnecting;
+    });
+
     // Auth required event
     window.addEventListener("homedock:auth_required", () => {
       wsManager.disconnect();
@@ -197,6 +214,7 @@ class App {
     // Real-time telemetry events from WebSocket
     window.addEventListener("homedock:telemetry", (e) => {
       const data = e.detail;
+      updateAlertBadge(data);
       if (data.metrics) {
         headerComponent.update(data.metrics);
         dashboardComponent.updateMetrics(data.metrics);

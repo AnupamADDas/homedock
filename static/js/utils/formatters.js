@@ -69,3 +69,13 @@ export function formatSpeedLimitStr(bytesPerSec) {
   const kb = Math.round(bytesPerSec / 1024);
   return `${kb} KB/s`;
 }
+
+/** Escape text for safe interpolation into HTML (text nodes and quoted attributes). */
+export function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
