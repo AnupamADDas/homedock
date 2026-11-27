@@ -40,6 +40,11 @@ export function evaluateAlerts({ metrics, storage }) {
       for (const part of device.partitions || []) {
         const used = part.usage_percent;
         if (typeof used !== "number") continue;
+        // Read-only images (snaps, live media, system images) are always "100% full" by design.
+        const fstype = String(part.fstype || "").toLowerCase();
+        const mount = String(part.mountpoint || "");
+        if (["squashfs", "erofs", "iso9660", "udf", "cramfs"].includes(fstype)
+            || mount.startsWith("/snap") || mount.startsWith("/var/lib/snapd")) continue;
         const sev = severityFor(used, THRESHOLDS.disk);
         if (sev) {
           const label = part.mountpoint || part.name || device.name;

@@ -157,6 +157,136 @@ class ApiService {
     return `/api/files/download?path=${encodeURIComponent(path)}${tokenParam}`;
   }
 
+  /**
+   * Upload a file as a series of small raw-body requests so reverse proxies and
+   * tunnels (body-size limits, idle timeouts) cannot cut it off. Each chunk is
+   * retried on network errors, stalls and 5xx responses; a 413 from a proxy makes
+   * the chunks smaller automatically.
+   *
+   * @param {File} file
+   * @param {string} destination
+   * @param {Object} [opts]
+   * @param {(percent:number, loaded:number, total:number) => void} [opts.onProgress]
+   * @param {(controller:{abort:() => void}) => void} [opts.onStart] receives a cancel handle
+   * @param {(message:string) => void} [opts.onStatus] retry / slow-connection notices
+   */
+  uploadFileChunked(file, destination, { onProgress, onStart, onStatus } = {}) {
+    const MIN_CHUNK = 256 * 1024;
+    const MAX_RETRIES = 6;
+    const STALL_MS = 25000;
+    const uploadId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "");
+    const total = file.size;
+    let chunkSize = Math.min(this.uploadChunkSize || 4 * 1024 * 1024, 8 * 1024 * 1024);
+    let cancelled = false;
+    let currentXhr = null;
+
+    const base = (offset) => `/api/files/upload/chunk?${new URLSearchParams({
+      destination, filename: file.name, upload_id: uploadId, offset: String(offset), total: String(total),
+    })}`;
+
+    const controller = {
+      abort: () => {
+        if (cancelled) return;
+        cancelled = true;
+        currentXhr?.abort();
+        // Remove the partial file on the server (best effort).
+        fetch(`/api/files/upload/chunk?${new URLSearchParams({ destination, upload_id: uploadId })}`, {
+          method: "DELETE",
+          headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+        }).catch(() => {});
+      },
+    };
+    onStart?.(controller);
+
+    const sendChunk = (offset, blob) => new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      currentXhr = xhr;
+      let stalled = false;
+      let watchdog = null;
+      const arm = () => {
+        clearTimeout(watchdog);
+        watchdog = setTimeout(() => { stalled = true; xhr.abort(); }, STALL_MS);
+      };
+      xhr.open("PUT", base(offset));
+      if (this.token) xhr.setRequestHeader("Authorization", `Bearer ${this.token}`);
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.upload.addEventListener("progress", (e) => {
+        arm();
+        onProgress?.(((offset + e.loaded) / (total || 1)) * 100, offset + e.loaded, total);
+      });
+      xhr.onload = () => {
+        clearTimeout(watchdog);
+        let body = null;
+        try { body = JSON.parse(xhr.responseText); } catch { /* non-JSON (e.g. proxy error page) */ }
+        resolve({ status: xhr.status, body });
+      };
+      xhr.onerror = () => { clearTimeout(watchdog); reject(Object.assign(new Error("Network error"), { retryable: true })); };
+      xhr.onabort = () => {
+        clearTimeout(watchdog);
+        reject(stalled
+          ? Object.assign(new Error("Connection stalled"), { retryable: true })
+          : Object.assign(new Error("Upload cancelled"), { cancelled: true }));
+      };
+      arm();
+      xhr.send(blob);
+    });
+
+    return (async () => {
+      let offset = 0;
+      let retries = 0;
+      // Zero-byte files still need one (empty) request to be created.
+      while (!cancelled && (offset < total || (total === 0 && offset === 0))) {
+        const end = Math.min(offset + chunkSize, total);
+        let result;
+        try {
+          result = await sendChunk(offset, file.slice(offset, end));
+        } catch (err) {
+          if (cancelled || err.cancelled) throw new Error("Upload cancelled");
+          if (++retries > MAX_RETRIES) throw new Error(`${err.message} — gave up after ${MAX_RETRIES} retries. Check your connection or proxy.`);
+          onStatus?.(`${err.message}, retrying (${retries}/${MAX_RETRIES})…`);
+          await new Promise(r => setTimeout(r, Math.min(1000 * 2 ** (retries - 1), 15000)));
+          continue;
+        }
+
+        const { status, body } = result;
+        const detail = body?.detail;
+        if (status >= 200 && status < 300) {
+          retries = 0;
+          this.uploadChunkSize = chunkSize; // remember what this connection accepts
+          offset = body?.received ?? end;
+          onProgress?.((offset / (total || 1)) * 100, offset, total);
+          if (body?.complete) return body;
+          if (total === 0) return body;
+          continue;
+        }
+        if (status === 401) {
+          this.setToken(null);
+          window.dispatchEvent(new CustomEvent("homedock:auth_required"));
+          throw new Error("Session expired. Please log in again.");
+        }
+        if (status === 413) {
+          if (chunkSize <= MIN_CHUNK) throw new Error("The proxy in front of HomeDock rejects even small uploads (413). Raise its request size limit.");
+          chunkSize = Math.max(MIN_CHUNK, Math.floor(chunkSize / 2));
+          onStatus?.(`Proxy limit hit, using ${Math.round(chunkSize / 1024)} KB chunks…`);
+          continue;
+        }
+        if (status === 409 && typeof detail?.received === "number") {
+          offset = detail.received; // resync with what the server actually has
+          continue;
+        }
+        if (status >= 500 || status === 0 || status === 408 || status === 429) {
+          if (++retries > MAX_RETRIES) throw new Error(`Server error (${status}) — gave up after ${MAX_RETRIES} retries.`);
+          onStatus?.(`Server error (${status}), retrying (${retries}/${MAX_RETRIES})…`);
+          await new Promise(r => setTimeout(r, Math.min(1000 * 2 ** (retries - 1), 15000)));
+          continue;
+        }
+        const message = typeof detail === "string" ? detail : detail?.message;
+        throw new Error(message || `Upload failed (HTTP ${status})`);
+      }
+      throw new Error("Upload cancelled");
+    })();
+  }
+
   async uploadFile(file, destination, onProgress = null, onStart = null) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();

@@ -376,3 +376,55 @@ def test_storage_chips_exclude_snap_and_boot(client, auth_headers):
 
 
 
+
+
+def _put_chunk(client, auth_headers, dest, name, upload_id, offset, total, data):
+    params = {"destination": dest, "filename": name, "upload_id": upload_id, "offset": offset, "total": total}
+    return client.put("/api/files/upload/chunk", params=params, content=data,
+                      headers={**auth_headers, "Content-Type": "application/octet-stream"})
+
+
+def test_chunked_upload_assembles_file(client, auth_headers, test_sandbox):
+    allowed = test_sandbox["allowed"]
+    payload = os.urandom(2500)
+    uid = "test-upload-0001"
+    r1 = _put_chunk(client, auth_headers, allowed, "chunked.bin", uid, 0, len(payload), payload[:1000])
+    assert r1.status_code == 200 and r1.json()["complete"] is False
+    # A retried (duplicate) chunk is harmless
+    r1b = _put_chunk(client, auth_headers, allowed, "chunked.bin", uid, 0, len(payload), payload[:1000])
+    assert r1b.json()["received"] == 1000
+    # Skipping ahead is rejected with the offset to resume from
+    gap = _put_chunk(client, auth_headers, allowed, "chunked.bin", uid, 2000, len(payload), payload[2000:])
+    assert gap.status_code == 409 and gap.json()["detail"]["received"] == 1000
+    r2 = _put_chunk(client, auth_headers, allowed, "chunked.bin", uid, 1000, len(payload), payload[1000:])
+    assert r2.json()["complete"] is True
+    assert (Path(allowed) / "chunked.bin").read_bytes() == payload
+    assert not list(Path(allowed).glob(".homedock-upload-*"))
+    # The final chunk sent again (lost response) still reports success
+    again = _put_chunk(client, auth_headers, allowed, "chunked.bin", uid, 1000, len(payload), payload[1000:])
+    assert again.status_code == 200 and again.json()["complete"] is True
+
+
+def test_chunked_upload_empty_file_and_cancel(client, auth_headers, test_sandbox):
+    allowed = test_sandbox["allowed"]
+    empty = _put_chunk(client, auth_headers, allowed, "empty.txt", "test-upload-0002", 0, 0, b"")
+    assert empty.json()["complete"] is True and (Path(allowed) / "empty.txt").stat().st_size == 0
+
+    _put_chunk(client, auth_headers, allowed, "partial.bin", "test-upload-0003", 0, 10, b"12345")
+    assert list(Path(allowed).glob(".homedock-upload-test-upload-0003.part"))
+    resp = client.delete("/api/files/upload/chunk", params={"destination": allowed, "upload_id": "test-upload-0003"}, headers=auth_headers)
+    assert resp.status_code == 200
+    assert not list(Path(allowed).glob(".homedock-upload-*"))
+
+
+def test_chunked_upload_rejects_bad_input(client, auth_headers, test_sandbox):
+    allowed = test_sandbox["allowed"]
+    # Outside allowed roots
+    outside = str(Path(test_sandbox["secret_file"]).parent)
+    assert _put_chunk(client, auth_headers, outside, "x.bin", "test-upload-0004", 0, 3, b"abc").status_code == 403
+    # Path tricks in the upload id or file name
+    assert _put_chunk(client, auth_headers, allowed, "x.bin", "../../etc", 0, 3, b"abc").status_code == 400
+    r = _put_chunk(client, auth_headers, allowed, "../../escape.bin", "test-upload-0005", 0, 3, b"abc")
+    assert r.status_code == 200 and (Path(allowed) / "escape.bin").exists()
+    # More data than declared
+    assert _put_chunk(client, auth_headers, allowed, "y.bin", "test-upload-0006", 0, 2, b"abc").status_code == 400

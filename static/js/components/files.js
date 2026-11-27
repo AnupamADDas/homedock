@@ -1226,10 +1226,8 @@ export class FileManagerComponent {
       const fileName = file.name;
 
       try {
-        await api.uploadFile(
-          file,
-          this.currentPath,
-          (percent, loaded) => {
+        await api.uploadFileChunked(file, this.currentPath, {
+          onProgress: (percent, loaded) => {
             if (this.uploadCancelled) return;
             const currentLoaded = loaded !== undefined ? loaded : (percent / 100) * file.size;
             const currentTotalLoaded = bytesCompletedBefore + currentLoaded;
@@ -1242,10 +1240,14 @@ export class FileManagerComponent {
               action: "upload",
             });
           },
-          (xhr) => {
-            this.activeUploadXhr = xhr;
-          }
-        );
+          onStatus: (message) => {
+            if (!this.uploadCancelled) this.updateTaskProgress({ detail: message });
+          },
+          // A cancel handle with abort(); cancelCurrentTask() calls it.
+          onStart: (controller) => {
+            this.activeUploadXhr = controller;
+          },
+        });
         this.activeUploadXhr = null;
         bytesCompletedBefore += file.size;
         uploadedCount++;

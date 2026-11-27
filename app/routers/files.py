@@ -5,12 +5,14 @@ and chunked file upload/download streaming.
 """
 
 import os
+import re
 import shutil
 import mimetypes
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from app.services.file_service import file_service, TaskCancelledException
 from app.services.task_manager import task_manager
@@ -318,6 +320,116 @@ async def upload_file(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+# ---------------------------------------------------------------------------
+# Chunked uploads
+#
+# Large single-request uploads get cut off by reverse proxies and tunnels
+# (nginx client_max_body_size defaults to 1 MB, Cloudflare caps bodies at 100 MB,
+# idle timeouts kill slow transfers). The browser therefore sends each file as a
+# series of small raw-body requests. Chunks are written to a hidden ".part" file
+# next to the destination and atomically renamed into place once complete.
+# Every chunk carries its byte offset, so a retried or duplicated chunk is safe.
+# ---------------------------------------------------------------------------
+
+MAX_UPLOAD_CHUNK = 16 * 1024 * 1024
+_UPLOAD_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
+def _chunk_targets(destination: str, filename: str, upload_id: str, allowed_roots: List[str]):
+    if not _UPLOAD_ID_RE.match(upload_id or ""):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid upload id")
+    dest_dir = file_service.validate_path(destination, allowed_roots, check_exists=True)
+    if not dest_dir.is_dir():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destination must be a directory")
+    safe_filename = os.path.basename(filename or "uploaded_file")
+    if not safe_filename or safe_filename in (".", ".."):
+        safe_filename = "uploaded_file"
+    target = file_service.validate_path(str(dest_dir / safe_filename), allowed_roots, check_exists=False)
+    part = file_service.validate_path(str(dest_dir / f".homedock-upload-{upload_id}.part"), allowed_roots, check_exists=False)
+    return dest_dir, safe_filename, target, part
+
+
+def _write_chunk(part: Path, offset: int, data: bytes) -> int:
+    """Write data at offset into the part file. Returns the part file's new size."""
+    mode = "r+b" if part.exists() else "wb"
+    with open(part, mode) as fh:
+        fh.seek(0, os.SEEK_END)
+        current = fh.tell()
+        if offset > current:
+            # A chunk went missing; tell the client where to resume from.
+            return -current - 1
+        fh.seek(offset)
+        fh.write(data)
+        fh.truncate(offset + len(data))
+        return offset + len(data)
+
+
+@router.put("/upload/chunk")
+async def upload_chunk(
+    request: Request,
+    destination: str = Query(...),
+    filename: str = Query(...),
+    upload_id: str = Query(...),
+    offset: int = Query(..., ge=0),
+    total: int = Query(..., ge=0),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    allowed_roots = get_user_allowed_roots(current_user)
+    try:
+        _, safe_filename, target, part = _chunk_targets(destination, filename, upload_id, allowed_roots)
+
+        declared = request.headers.get("content-length")
+        if declared is not None and declared.isdigit() and int(declared) > MAX_UPLOAD_CHUNK:
+            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Chunk too large")
+        data = bytearray()
+        async for piece in request.stream():
+            data.extend(piece)
+            if len(data) > MAX_UPLOAD_CHUNK:
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Chunk too large")
+        if offset + len(data) > total:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chunk exceeds declared file size")
+
+        # The final chunk was already applied but its response got lost: report success again.
+        if (not part.exists() and offset > 0 and offset + len(data) == total
+                and target.is_file() and target.stat().st_size == total):
+            return {"success": True, "complete": True, "received": total,
+                    "filename": safe_filename, "path": str(target), "size": total}
+
+        received = await run_in_threadpool(_write_chunk, part, offset, bytes(data))
+        if received < 0:
+            return_size = -received - 1
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "Offset mismatch", "received": return_size})
+
+        if received == total:
+            await run_in_threadpool(os.replace, part, target)
+            return {"success": True, "complete": True, "received": received,
+                    "filename": safe_filename, "path": str(target), "size": received}
+        return {"success": True, "complete": False, "received": received}
+    except HTTPException:
+        raise
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.delete("/upload/chunk")
+async def cancel_chunked_upload(
+    destination: str = Query(...),
+    upload_id: str = Query(...),
+    current_user: Dict[str, Any] = Depends(get_current_user),
+):
+    allowed_roots = get_user_allowed_roots(current_user)
+    try:
+        _, _, _, part = _chunk_targets(destination, "x", upload_id, allowed_roots)
+        if part.exists():
+            part.unlink()
+        return {"success": True}
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 @router.post("/mkdir")
 async def create_directory(req: MkdirRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
